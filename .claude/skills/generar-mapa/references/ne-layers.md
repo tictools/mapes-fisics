@@ -54,3 +54,14 @@ Catalan → Natural Earth table, so update it with every new feature.
 - **Straits** are not drawn from `marine` (the polygons are too small at this scale): use `kind`
   `line` with two points across the strait, from coordinates the user confirms.
 - **Coverage** is incomplete at this scale: small features may be missing. Report them as not found.
+  E.g. Easter Island (Rapa Nui) is not in `regions`: it only exists as a 7-point part of Chile in
+  `countries`. Before reporting an island as not found, look for it as a part of its country and
+  select it with `within` (see SKILL.md, step 4).
+- **Same name, different extent.** `LABRADOR` (class `Island`) is the Labrador region of Canada,
+  not the whole Labrador Peninsula (`PÉNINSULE D’UNGAVA` is another, smaller piece);
+  `HAWAIIAN ISLANDS` includes the north-western chain up to 179° W, while `Hawai‘i` is only the Big
+  Island. Report these as ambiguous.
+- **Rivers can stop short of the mouth or the source**: `Amazonas` ends at 52.7° W, before the
+  delta; `Congo` needs `Lualaba` for its upper course; the Nile is `Nile` + `El Bahr el Abyad` +
+  `Bahr el Jebel` + `Albert Nile` + `Victoria Nile` (the Blue Nile, `Abay`/`El Bahr el Azraq`, is a
+  tributary).

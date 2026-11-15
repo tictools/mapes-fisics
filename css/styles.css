@@ -137,7 +137,6 @@ a.btn { text-decoration: none; text-align: center; }
   display: grid; place-items: center; width: 30px; height: 30px; padding: 0; flex: none;
   border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
 }
-.group__eyes { display: flex; gap: 2px; }
 .group__eye:hover { background: var(--bg); color: var(--ink); }
 .group__eye[aria-pressed="true"] { background: var(--gc); color: #fff; }
 .group__eye .icon { width: 19px; height: 19px; }

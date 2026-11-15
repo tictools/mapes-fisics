@@ -1,0 +1,29 @@
+{
+  "id": "africa",
+  "title": "Àfrica",
+  "projection": {"type": "laea", "lon0": 15, "lat0": 3},
+  "extent": [[-27, 38], [53, 38], [-27, -36], [53, -36], [15, 39], [20, -37], [-27, 15], [53, 12]],
+  "graticule": {"meridian_lats": [-40, 45], "parallels": [-40, 40], "parallel_lons": [-30, 60]},
+  "features": [
+    {"id": "nil", "name": "Nil", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Nile"}, {"layer": "rivers", "name": "El Bahr el Abyad"}, {"layer": "rivers", "name": "Bahr el Jebel"}, {"layer": "rivers", "name": "Albert Nile"}, {"layer": "rivers", "name": "Victoria Nile"}], "dot": [32.6, 20.0]},
+    {"id": "zambezi", "name": "Zambezi", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Zambezi"}], "dot": [30.0, -15.8]},
+    {"id": "niger", "name": "Níger", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Niger"}], "dot": [-1.0, 15.5]},
+    {"id": "congo", "name": "Congo", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Congo"}, {"layer": "rivers", "name": "Lualaba"}], "dot": [20.0, -0.5]},
+    {"id": "atlas", "name": "Atlas", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "ATLAS MOUNTAINS"}], "dot": [-3.0, 32.5]},
+    {"id": "massis_etiop", "name": "Massís Etíop", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "ETHIOPIAN HIGHLANDS"}], "dot": [38.5, 10.0]},
+    {"id": "muntanyes_mitumba", "name": "Muntanyes Mitumba", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "MITUMBA MTS."}], "dot": [28.7, -3.0], "label": [24.0, -3.6]},
+    {"id": "kilimanjaro", "name": "Kilimanjaro (5.895 m)", "group": "Serralades", "kind": "peak", "manual": true, "dot": [37.355, -3.067], "label": [42.0, -1.6]},
+    {"id": "somalia", "name": "Península de Somàlia", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "SOMALI PENINSULA"}], "dot": [46.0, 6.0]},
+    {"id": "madagascar", "name": "Madagascar", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "MADAGASCAR"}], "dot": [46.8, -19.0]},
+    {"id": "zanzibar", "name": "Zanzíbar", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "Zanzibar I."}], "dot": [39.35, -6.1]},
+    {"id": "victoria", "name": "Llac Victòria", "group": "Llacs", "kind": "area", "source": [{"layer": "lakes", "name": "Lake Victoria"}], "dot": [33.0, -1.2]},
+    {"id": "sahara", "name": "El Sàhara", "group": "Deserts", "kind": "area", "source": [{"layer": "regions", "name": "SAHARA"}], "dot": [10.0, 23.0]},
+    {"id": "kalahari", "name": "Desert del Kalahari", "group": "Deserts", "kind": "area", "source": [{"layer": "regions", "name": "KALAHARI DESERT"}], "dot": [20.5, -23.5]},
+    {"id": "gibraltar", "name": "Estret de Gibraltar", "group": "Estrets", "kind": "line", "coords": [[-5.6, 36.01], [-5.48, 35.91]], "manual": true, "dot": [-5.54, 35.96]},
+    {"id": "suez", "name": "Canal de Suez", "group": "Estrets", "kind": "line", "coords": [[32.31, 31.26], [32.55, 29.93]], "manual": true, "dot": [32.43, 30.6]},
+    {"id": "guinea", "name": "Golf de Guinea", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Gulf of Guinea"}], "dot": [2.0, 2.0]},
+    {"id": "aden", "name": "Golf d'Aden", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Gulf of Aden"}], "dot": [47.5, 12.6]},
+    {"id": "canaries", "name": "Les Canàries", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "ISLAS CANARIAS"}], "dot": [-15.6, 28.2]},
+    {"id": "cap_verd", "name": "Cap Verd", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "ILHAS DE CABO VERDE"}], "dot": [-23.9, 15.9]}
+  ]
+}

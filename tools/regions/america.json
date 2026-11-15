@@ -1,0 +1,30 @@
+{
+  "id": "america",
+  "title": "Amèrica",
+  "projection": {"type": "laea", "lon0": -90, "lat0": 18},
+  "extent": [[-176, 66], [-160, 18], [-155, 17], [-110, -30], [-92, -3], [-68, -57], [-34, -8], [-10, 82], [-73, 84], [-120, 72], [-170, 52], [-55, 60]],
+  "graticule": {"meridian_lats": [-60, 85], "parallels": [-60, 80], "parallel_lons": [-180, -10]},
+  "features": [
+    {"id": "amazones", "name": "Amazones", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Amazonas"}], "dot": [-62.0, -3.4]},
+    {"id": "mississipi", "name": "Mississipí", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Mississippi"}], "dot": [-90.3, 36.0]},
+    {"id": "parana", "name": "Paranà", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Paraná"}], "dot": [-58.8, -28.0]},
+    {"id": "andes", "name": "Andes", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "ANDES"}], "dot": [-68.5, -22.0]},
+    {"id": "rocalloses", "name": "Les Rocalloses", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "ROCKY MOUNTAINS"}], "dot": [-114.0, 46.0]},
+    {"id": "apalatxes", "name": "Els Apalatxes", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "APPALACHIAN MTS."}], "dot": [-79.5, 38.5]},
+    {"id": "aconcagua", "name": "Aconcagua (6.959 m)", "group": "Serralades", "kind": "peak", "manual": true, "dot": [-70.011, -32.653]},
+    {"id": "yucatan", "name": "Yucatan", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "PEN. DE YUCATÁN"}], "dot": [-89.4, 19.5]},
+    {"id": "labrador", "name": "Labrador", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "LABRADOR"}], "dot": [-61.0, 55.5]},
+    {"id": "florida", "name": "Florida", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "FLORIDA"}], "dot": [-81.6, 28.0]},
+    {"id": "california", "name": "Califòrnia", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "BAJA CALIFORNIA"}], "dot": [-113.3, 28.0]},
+    {"id": "groenlandia", "name": "Groenlàndia", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "GREENLAND"}], "dot": [-41.0, 72.0]},
+    {"id": "rapa_nui", "name": "Rapa Nui (Pasqua)", "group": "Illes", "kind": "area", "source": [{"layer": "countries", "name": "Chile", "within": [-110, -28, -108.5, -26.5]}], "dot": [-109.34, -27.12]},
+    {"id": "titicaca", "name": "Titicaca", "group": "Llacs", "kind": "area", "source": [{"layer": "lakes", "name": "Lago Titicaca"}], "dot": [-69.3, -15.85]},
+    {"id": "grans_llacs", "name": "Grans Llacs", "group": "Llacs", "kind": "area", "source": [{"layer": "lakes", "name": "Lake Superior"}, {"layer": "lakes", "name": "Lake Michigan"}, {"layer": "lakes", "name": "Lake Huron"}, {"layer": "lakes", "name": "Lake Erie"}, {"layer": "lakes", "name": "Lake Ontario"}], "dot": [-82.3, 44.8]},
+    {"id": "bering", "name": "Estret de Bering", "group": "Estrets", "kind": "line", "coords": [[-169.7, 66.08], [-168.1, 65.6]], "manual": true, "dot": [-168.9, 65.85]},
+    {"id": "mexic", "name": "Golf de Mèxic", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Gulf of Mexico"}], "dot": [-90.0, 25.5]},
+    {"id": "alaska", "name": "Golf d'Alaska", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Gulf of Alaska"}], "dot": [-147.0, 57.5]},
+    {"id": "antilles", "name": "Les Antilles", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "GREATER ANTILLES"}, {"layer": "regions", "name": "LESSER ANTILLES"}], "dot": [-77.5, 21.6]},
+    {"id": "hawaii", "name": "Hawaii", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "Hawai‘i"}], "dot": [-155.5, 19.6]},
+    {"id": "galapagos", "name": "Les Galàpagos", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "ARCHIPIÉLAGO DE COLÓN"}], "dot": [-90.6, -0.6]}
+  ]
+}

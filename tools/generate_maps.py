@@ -24,7 +24,9 @@ Region config (tools/regions/<id>.json):
     features           list, in tray order; each one:
         id, name, group    identifier (ascii), name shown in the page, group (see GROUPS)
         kind               area | river | line | peak
-        source             area/river: [{"layer": .., "name": .., "largest": bool}, ...]  (see LAYERS)
+        source             area/river: [{"layer": .., "name": .., "largest": bool, "within": [..]}, ...]  (see LAYERS)
+                           largest: keep only the largest polygon; within [min_lon, min_lat, max_lon, max_lat]:
+                           keep only the polygons entirely inside that box (one island of a country)
         coords             line: [[lon, lat], ...]  (drawn by hand, "manual": true)
         dot                [lon, lat]  answer point (rivers snap it to the river)
         label              optional [lon, lat]  label position (default: just above the dot)
@@ -96,6 +98,7 @@ REQUIRED_REGION_KEYS = ('id', 'title', 'projection', 'extent', 'features')
 REQUIRED_FEATURE_KEYS = ('id', 'name', 'group', 'kind', 'dot')
 ID_PATTERN = r'[a-z0-9_]+'
 MIN_LINE_POINTS = 2
+WITHIN_BOX_SIZE = 4  # [min_lon, min_lat, max_lon, max_lat]
 DEFAULT_GRATICULE = {'meridian_lats': [-30, 85], 'parallels': [-20, 80], 'parallel_lons': [-60, 250]}
 WARNINGS_KEY = '_warnings'  # temporary key of the generated data, removed before saving
 
@@ -276,6 +279,14 @@ def ring_area(ring):
     return shoelace_area(np.array(ring))
 
 
+def ring_within(ring, box):
+    """Whether every point of the ring is inside box [min_lon, min_lat, max_lon, max_lat]."""
+    min_lon, min_lat, max_lon, max_lat = box
+    points = np.array(ring)[:, :2]
+    return bool(np.all((points[:, 0] >= min_lon) & (points[:, 0] <= max_lon)
+                       & (points[:, 1] >= min_lat) & (points[:, 1] <= max_lat)))
+
+
 def source_polygons(refs):
     """Polygons of an area feature, in the order of its source refs."""
     out = []
@@ -283,8 +294,11 @@ def source_polygons(refs):
         file_name, name_key = LAYERS[ref['layer']]
         found = [polygon for ne_feature in load(file_name) if ne_feature['properties'].get(name_key) == ref['name']
                  for polygon in polygons(ne_feature['geometry'])]
+        if 'within' in ref:
+            found = [polygon for polygon in found if ring_within(polygon[0], ref['within'])]
         if not found:
-            raise SystemExit(f"Not found in Natural Earth: {ref['layer']} {ref['name']!r}")
+            raise SystemExit(f"Not found in Natural Earth: {ref['layer']} {ref['name']!r}"
+                             + (f" within {ref['within']}" if 'within' in ref else ''))
         out += [max(found, key=lambda polygon: ring_area(polygon[0]))] if ref.get('largest') else found
     return out
 
@@ -397,6 +411,16 @@ def build(frame, features, warnings):
 
 
 # ================================================================ region configs
+def valid_box(box):
+    """Whether box is [min_lon, min_lat, max_lon, max_lat] with min < max."""
+    if not isinstance(box, list) or len(box) != WITHIN_BOX_SIZE:
+        return False
+    if not all(isinstance(value, (int, float)) for value in box):
+        return False
+    min_lon, min_lat, max_lon, max_lat = box
+    return min_lon < max_lon and min_lat < max_lat
+
+
 def validate(config):
     """Returns a list of problems in a region config (empty if it is valid)."""
     errors = [f'missing key {key!r}' for key in REQUIRED_REGION_KEYS if key not in config]
@@ -430,6 +454,8 @@ def validate(config):
                     errors.append(f"{where}: unknown layer {ref.get('layer')!r} (known: {', '.join(LAYERS)})")
                 elif (kind == KIND_RIVER) != (ref['layer'] == LAYER_RIVERS):
                     errors.append(f"{where}: {kind} cannot use layer {ref['layer']!r}")
+                if 'within' in ref and not valid_box(ref['within']):
+                    errors.append(f'{where}: within must be [min_lon, min_lat, max_lon, max_lat]')
         if kind == KIND_LINE and len(feature.get('coords') or []) < MIN_LINE_POINTS:
             errors.append(f'{where}: line needs at least {MIN_LINE_POINTS} coords')
         if kind in MANUAL_KINDS and not feature.get('manual'):
