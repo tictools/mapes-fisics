@@ -142,12 +142,17 @@
   /** @param {string} id @returns {Promise<MapData>} */
   function loadData(id) {
     const w = /** @type {MapWindow} */ (window);
-    const store = (w.MAP_DATA = w.MAP_DATA || {});
-    if (store[id]) return Promise.resolve(store[id]);
+    if (!w.MAP_DATA) w.MAP_DATA = {};
+    const store = w.MAP_DATA;
+    const cached = store[id];
+    if (cached) return Promise.resolve(cached);
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = `data/${id}.js`;
-      s.onload = () => (store[id] ? resolve(store[id]) : reject(new Error('dades buides')));
+      s.onload = () => {
+        const data = store[id];
+        if (data) resolve(data); else reject(new Error('dades buides'));
+      };
       s.onerror = () => reject(new Error(`No s'ha pogut carregar data/${id}.js`));
       document.head.appendChild(s);
     });
@@ -210,7 +215,9 @@
     document.title = `${data.title} · Mapa de consulta`;
     $('#tray').classList.remove('is-complete');
     buildMap(data, `Mapa de consulta de ${data.title}`);
-    state.svg.classList.add('is-static');
+    const svg = state.svg;
+    if (!svg) return;
+    svg.classList.add('is-static');
     for (const f of data.features) reveal(f.id);
     buildLegend(data);
   }
@@ -234,7 +241,8 @@
         const on = head.getAttribute('aria-pressed') !== 'true';
         head.setAttribute('aria-pressed', String(on));
         sec.classList.toggle('is-off', !on);
-        state.svg.querySelectorAll(`[data-group="${g}"]`).forEach((n) => n.classList.toggle('is-hidden', !on));
+        const svg = state.svg;
+        if (svg) svg.querySelectorAll(`[data-group="${g}"]`).forEach((n) => n.classList.toggle('is-hidden', !on));
       });
       sec.appendChild(head);
       const box = document.createElement('div');
@@ -257,6 +265,7 @@
   /** Highlights one feature and dims the rest; clicking it again clears the focus. @param {string} id */
   function focusFeature(id) {
     const svg = state.svg;
+    if (!svg) return;
     const same = svg.dataset.focus === id;
     svg.querySelectorAll('.is-focus').forEach((n) => n.classList.remove('is-focus'));
     document.querySelectorAll('.pill--static.is-focus').forEach((n) => n.classList.remove('is-focus'));
@@ -264,7 +273,8 @@
     svg.dataset.focus = id;
     svg.classList.add('has-focus');
     svg.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.add('is-focus'));
-    document.querySelector(`.pill--static[data-id="${id}"]`).classList.add('is-focus');
+    const pill = document.querySelector(`.pill--static[data-id="${id}"]`);
+    if (pill) pill.classList.add('is-focus');
   }
 
   /** Group names in order of first appearance. @param {MapData} data */
@@ -331,13 +341,14 @@
   /** @param {SVGElement} parent @param {Feature} f */
   function drawHighlight(parent, f) {
     const hl = el('g', featAttrs(f, `hl hl--${slug(f.group)}`), parent);
-    if (f.kind === 'area') {
-      el('path', { class: 'fill', d: f.d, 'fill-rule': 'evenodd' }, hl);
-      el('path', { class: 'halo', d: f.d }, hl);
-      el('path', { class: 'edge', d: f.d }, hl);
-    } else if (f.kind === 'river' || f.kind === 'line') {
-      el('path', { class: 'halo', d: f.d }, hl);
-      el('path', { class: 'edge', d: f.d }, hl);
+    const d = f.d;
+    if (d && f.kind === 'area') {
+      el('path', { class: 'fill', d, 'fill-rule': 'evenodd' }, hl);
+      el('path', { class: 'halo', d }, hl);
+      el('path', { class: 'edge', d }, hl);
+    } else if (d && (f.kind === 'river' || f.kind === 'line')) {
+      el('path', { class: 'halo', d }, hl);
+      el('path', { class: 'edge', d }, hl);
     } else if (f.kind === 'peak') {
       const [px, py] = f.dot;
       el('path', { class: 'peak', d: `M${px} ${py - 15}L${px + 12} ${py + 7}L${px - 12} ${py + 7}Z` }, hl);
@@ -368,9 +379,14 @@
 
   /** Shows a feature as solved: highlighted area, label and filled dot. @param {string} id */
   function reveal(id) {
-    state.svg.querySelector(`.hl[data-id="${id}"]`).classList.add('is-on');
-    state.svg.querySelector(`.lbl[data-id="${id}"]`).classList.add('is-on');
-    state.dots.get(id).node.classList.add('is-done');
+    const svg = state.svg;
+    if (!svg) return;
+    const hl = svg.querySelector(`.hl[data-id="${id}"]`);
+    const lbl = svg.querySelector(`.lbl[data-id="${id}"]`);
+    if (hl) hl.classList.add('is-on');
+    if (lbl) lbl.classList.add('is-on');
+    const dot = state.dots.get(id);
+    if (dot) dot.node.classList.add('is-done');
   }
 
   /** Split long names over two lines. @param {string} name @returns {string[]} */
@@ -414,6 +430,8 @@
     if (state.drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
     e.preventDefault();
     const pill = /** @type {HTMLElement} */ (e.currentTarget);
+    const featureId = pill.dataset.id;
+    if (!featureId) return;
     const r = pill.getBoundingClientRect();
     const ghost = /** @type {HTMLElement} */ (pill.cloneNode(true));
     ghost.classList.add('pill-ghost');
@@ -421,7 +439,7 @@
     document.body.appendChild(ghost);
     pill.classList.add('is-source');
     document.body.classList.add('is-dragging');
-    state.drag = { pill, ghost, id: pill.dataset.id, offX: e.clientX - r.left, offY: e.clientY - r.top, pointerId: e.pointerId, target: null };
+    state.drag = { pill, ghost, id: featureId, offX: e.clientX - r.left, offY: e.clientY - r.top, pointerId: e.pointerId, target: null };
     moveGhost(e.clientX, e.clientY);
     pill.setPointerCapture(e.pointerId);
     pill.addEventListener('pointermove', onPointerMove);
@@ -432,6 +450,7 @@
   /** @param {number} x @param {number} y */
   function moveGhost(x, y) {
     const d = state.drag;
+    if (!d) return;
     d.ghost.style.transform = `translate(${x - d.offX}px, ${y - d.offY}px)`;
   }
 
@@ -455,10 +474,16 @@
   /** @param {string | null} id */
   function setTarget(id) {
     const d = state.drag;
-    if (d.target === id) return;
-    if (d.target) state.dots.get(d.target).node.classList.remove('is-target');
+    if (!d || d.target === id) return;
+    if (d.target) {
+      const prev = state.dots.get(d.target);
+      if (prev) prev.node.classList.remove('is-target');
+    }
     d.target = id;
-    if (id) state.dots.get(id).node.classList.add('is-target');
+    if (id) {
+      const next = state.dots.get(id);
+      if (next) next.node.classList.add('is-target');
+    }
   }
 
   /** @param {PointerEvent} e */
@@ -469,7 +494,9 @@
   }
 
   function endListeners() {
-    const { pill, pointerId } = state.drag;
+    const d = state.drag;
+    if (!d) return;
+    const { pill, pointerId } = d;
     pill.removeEventListener('pointermove', onPointerMove);
     pill.removeEventListener('pointerup', onPointerUp);
     pill.removeEventListener('pointercancel', onPointerCancel);
@@ -516,7 +543,7 @@
     reveal(id);
     state.drag = null;
     updateStats();
-    if (state.solved.size === state.map.features.length) {
+    if (state.map && state.solved.size === state.map.features.length) {
       $('#tray').classList.add('is-complete');
       setTimeout(showDone, 900);
     }
@@ -526,9 +553,11 @@
   function wrongDrop(targetId, d) {
     state.errors += 1;
     updateStats();
-    const node = state.dots.get(targetId).node;
-    node.classList.add('is-wrong');
-    setTimeout(() => node.classList.remove('is-wrong'), 600);
+    const dot = state.dots.get(targetId);
+    if (dot) {
+      dot.node.classList.add('is-wrong');
+      setTimeout(() => dot.node.classList.remove('is-wrong'), 600);
+    }
     d.ghost.classList.add('is-wrong');
   }
 
@@ -550,9 +579,11 @@
   }
 
   function showDone() {
-    const n = state.map.features.length, e = state.errors;
+    const map = state.map;
+    if (!map) return;
+    const n = map.features.length, e = state.errors;
     const err = e === 0 ? 'sense cap error' : e === 1 ? 'amb 1 error' : `amb ${e} errors`;
-    $('#done-text').textContent = `Has situat els ${n} accidents geogràfics d'${state.map.title} ${err}.`;
+    $('#done-text').textContent = `Has situat els ${n} accidents geogràfics d'${map.title} ${err}.`;
     $('#done').hidden = false;
   }
 
@@ -562,7 +593,7 @@
     $('#btn-home').addEventListener('click', () => { location.hash = ''; });
     $('#btn-reset').addEventListener('click', () => state.map && state.mode === 'activitat' && startGame(state.map));
     $('#done-close').addEventListener('click', () => { $('#done').hidden = true; });
-    $('#done-reset').addEventListener('click', () => { $('#done').hidden = true; startGame(state.map); });
+    $('#done-reset').addEventListener('click', () => { $('#done').hidden = true; if (state.map) startGame(state.map); });
     $('#done-home').addEventListener('click', () => { location.hash = ''; });
     window.addEventListener('hashchange', route);
     route();
