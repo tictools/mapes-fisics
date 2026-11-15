@@ -5,7 +5,7 @@ Generates the map data (data/<region>.js) from the region configs in tools/regio
 Usage:
     python3 tools/generate_maps.py              # every region in tools/regions/
     python3 tools/generate_maps.py europa asia  # only these regions
-    python3 tools/generate_maps.py --check      # validate the configs and sources, write nothing
+    python3 tools/generate_maps.py --check      # validate configs, sources and layout, write nothing
 
 Natural Earth is read from tools/natural-earth-vector/geojson (override with NE_DIR=...).
 Only needs re-running to change features, base colours or the map framing.
@@ -324,6 +324,49 @@ def validate(cfg):
     return errs
 
 
+def split_label(name):
+    """Same rule as splitLabel() in js/app.js: names over 17 characters go on two lines."""
+    if len(name) <= 17:
+        return [name]
+    mid = len(name) / 2
+    spaces = [i for i, ch in enumerate(name) if ch == ' ']
+    if not spaces:
+        return [name]
+    best = min(spaces, key=lambda i: abs(i - mid))
+    return [name[:best], name[best + 1:]]
+
+
+def label_box(f):
+    """Approximate label box in viewBox units (24 px bold text, about 12 px per character; approximate, confirm in the browser)."""
+    lines = split_label(f['name'])
+    w = max(len(ln) for ln in lines) * 12 + 6
+    h = len(lines) * 27 + 6
+    x, y = f['label']
+    return x - w / 2, y - h / 2, x + w / 2, y + h / 2
+
+
+def layout_warnings(data):
+    """Labels that overlap, and dots or labels outside the map."""
+    out = []
+    W_, H_ = data['viewBox'][2], data['viewBox'][3]
+    feats = data['features']
+    boxes = [label_box(f) for f in feats]
+    for f, b in zip(feats, boxes):
+        x, y = f['dot']
+        if not (0 <= x <= W_ and 0 <= y <= H_):
+            out.append(f"{f['id']}: dot outside the map ({x}, {y})")
+        if b[0] < 0 or b[1] < 0 or b[2] > W_ or b[3] > H_:
+            out.append(f"{f['id']}: label partly outside the map")
+        if not f.get('d') and f['kind'] != 'peak':
+            out.append(f"{f['id']}: empty geometry (is the feature inside the extent?)")
+    for i in range(len(feats)):
+        for j in range(i + 1, len(feats)):
+            a, b = boxes[i], boxes[j]
+            if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
+                out.append(f"{feats[i]['id']} / {feats[j]['id']}: labels overlap")
+    return out
+
+
 def region_paths(ids):
     if ids:
         return [os.path.join(REGIONS, i + '.json') for i in ids]
@@ -335,11 +378,22 @@ def frame_of(cfg):
     return Frame(pr['lon0'], pr['lat0'], cfg['extent'])
 
 
-def write(cfg):
+def report(path, data):
+    warns = layout_warnings(data)
+    status = 'OK' if not warns else f'{len(warns)} warning(s)'
+    print(f"{os.path.relpath(path)}: {status} ({len(data['features'])} accidents)", *warns, sep='\n  - ')
+
+
+def build_region(cfg):
     frame = frame_of(cfg)
     key = cfg['id']
     data = {'id': key, 'title': cfg['title'], 'viewBox': [0, 0, W, frame.H],
             'base': base_layers(frame, cfg.get('graticule')), 'features': build(frame, cfg['features'])}
+    return data
+
+
+def save(data):
+    key = data['id']
     os.makedirs(OUT, exist_ok=True)
     # Saved as a script (not JSON) so the page also works when opening index.html without a server.
     p = os.path.join(OUT, key + '.js')
@@ -349,7 +403,7 @@ def write(cfg):
         fh.write(f'window.MAP_DATA[{json.dumps(key)}] = ')
         json.dump(data, fh, ensure_ascii=False, separators=(',', ':'))
         fh.write(';\n')
-    print(os.path.relpath(p), round(os.path.getsize(p) / 1024), 'KB', len(cfg['features']), 'accidents')
+    print(f'  wrote {os.path.relpath(p)} ({round(os.path.getsize(p) / 1024)} KB)')
 
 
 def main(argv):
@@ -366,15 +420,10 @@ def main(argv):
             failed = True
             print(f'{os.path.relpath(path)}:', *errs, sep='\n  - ')
             continue
-        if check:
-            for c in cfg['features']:  # every source must exist in Natural Earth
-                if c['kind'] == 'area':
-                    source_polys(c['source'])
-                elif c['kind'] == 'river':
-                    river_lines(c['source'])
-            print(f"{os.path.relpath(path)}: OK ({len(cfg['features'])} accidents)")
-        else:
-            write(cfg)
+        data = build_region(cfg)  # fails if a source is not in Natural Earth
+        report(path, data)
+        if not check:
+            save(data)
     return 1 if failed else 0
 
 

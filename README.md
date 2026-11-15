@@ -18,7 +18,10 @@ js/app.js           Logic: navigation, SVG map (shared by both modes), drag and 
 data/europa.js      Blank map + features of Europe (generated)
 data/asia.js        Blank map + features of Asia (generated)
 tools/regions/*.json     Config of each map: features, framing and projection
+tools/regions/names.json Catalan feature names → Natural Earth sources, reusable between regions
 tools/generate_maps.py   Script that generates data/<region>.js from its config and Natural Earth
+tools/find_ne.py         Searches the Natural Earth layers for a feature
+.claude/skills/generar-mapa/  Step-by-step guide for agents to add or change regions (see AGENTS.md)
 ```
 
 Routes: `#/europa` and `#/asia` open the activity; `#/europa/consulta` and `#/asia/consulta` open the reference map.
