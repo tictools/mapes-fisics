@@ -1,16 +1,16 @@
 /* ============ Group colours (same as the JPG maps; peninsulas and gulfs adjusted) ============ */
 :root {
-  --c-rius: #1E6FE0;
-  --c-serralades: #C62828;
-  --c-mars: #00A5B5;
-  --c-peninsules: #7B1FA2;
-  --c-illes: #2E7D32;
-  --c-planes: #D9A300;
-  --c-llacs: #1A237E;
-  --c-deserts: #EF6C00;
-  --c-estrets: #111111;
-  --c-golfs: #E8558A;
-  --c-arxipelegs: #795548;
+  --colour-rivers: #1E6FE0;
+  --colour-mountains: #C62828;
+  --colour-seas: #00A5B5;
+  --colour-peninsulas: #7B1FA2;
+  --colour-islands: #2E7D32;
+  --colour-plains: #D9A300;
+  --colour-lakes: #1A237E;
+  --colour-deserts: #EF6C00;
+  --colour-straits: #111111;
+  --colour-gulfs: #E8558A;
+  --colour-archipelagos: #795548;
 
   --sea: #D6E9F5;
   --land: #F4EFDF;
@@ -19,6 +19,9 @@
   --line: #D5DDE3;
   --bg: #F6F8FA;
   --radius: 12px;
+  --pill-radius: .5rem;
+  --panel-gap: .5rem;
+  --card-gap: .25rem;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -74,7 +77,7 @@ h1, h2 { margin: 0; }
   box-shadow: 0 6px 24px rgba(31, 42, 51, .07);
   transition: transform .15s, box-shadow .15s, border-color .15s;
 }
-.map-card:hover { transform: translateY(-3px); border-color: var(--c-rius); box-shadow: 0 12px 32px rgba(31, 42, 51, .12); }
+.map-card:hover { transform: translateY(-3px); border-color: var(--colour-rivers); box-shadow: 0 12px 32px rgba(31, 42, 51, .12); }
 .map-card__title { font-size: 34px; font-weight: 800; letter-spacing: -.01em; }
 .map-card__meta { font-size: 15px; color: var(--muted); }
 .map-card__actions { display: flex; justify-content: center; gap: 14px; margin-top: 14px; }
@@ -89,9 +92,9 @@ a.btn { text-decoration: none; text-align: center; }
 .topbar__title { font-size: 22px; margin-right: auto; }
 .topbar__stats { display: flex; gap: 18px; font-size: 16px; }
 .stat__label { color: var(--muted); }
-.stat--err strong { color: var(--c-serralades); }
+.stat--err strong { color: var(--colour-mountains); }
 
-/* Mode switch (Activitat | Consulta) */
+/* Mode switch (activity | reference) */
 .mode-switch { display: flex; padding: 3px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
 .mode-switch__opt {
   font-size: 14px; font-weight: 650; color: var(--muted); text-decoration: none;
@@ -99,64 +102,78 @@ a.btn { text-decoration: none; text-align: center; }
 }
 .mode-switch__opt:hover { color: var(--ink); }
 .mode-switch__opt[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(31, 42, 51, .15); }
-.game.is-consulta .topbar__stats, .game.is-consulta #btn-reset { display: none; }
+.game.is-reference .topbar__stats, .game.is-reference #btn-reset { display: none; }
 
-.game__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 330px; }
-.map-wrap { position: relative; min-width: 0; min-height: 0; padding: 12px; display: flex; }
+.game__body {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 330px;
+  gap: var(--panel-gap); padding: var(--panel-gap);
+}
+.map-wrap { position: relative; min-width: 0; min-height: 0; display: flex; }
 .map-wrap svg {
   width: 100%; height: 100%; display: block; background: var(--sea);
   border: 1px solid var(--line); border-radius: var(--radius); user-select: none; -webkit-user-select: none;
 }
 .map-loading { margin: auto; color: var(--muted); }
 
-.tray { border-left: 1px solid var(--line); background: #fff; overflow-y: auto; padding: 14px 16px 24px; }
-.tray__help { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
-.group { margin-bottom: 14px; }
+/* Sidebar: same background as the map area; each group is a white card. Sizes are in em of the
+   tray font size, which js/app.js (fitTray) lowers until the expanded groups fit without scrolling. */
+.tray {
+  min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--panel-gap);
+  font-size: var(--tray-font-size, 14px);
+}
+.tray__help { margin: 0; padding: .3em .3em 0; color: var(--muted); font-size: 1em; }
+.tray__groups { display: flex; flex-direction: column; gap: var(--card-gap); }
+.tray.is-two-columns .tray__groups { display: block; column-count: 2; column-gap: var(--card-gap); }
+.tray.is-two-columns .group { break-inside: avoid; margin-bottom: var(--card-gap); }
+.group {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .55em .75em .7em;
+}
 .group__title {
-  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 7px;
+  display: flex; align-items: center; gap: .65em; font-size: .8em; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 .45em;
 }
 .group__swatch { width: 16px; height: 12px; border-radius: 3px; background: var(--gc); opacity: .9; }
-.group__swatch--serralades { background: repeating-linear-gradient(135deg, var(--gc) 0 3px, #fff 3px 5px); }
-.group__swatch--peninsules { background: transparent; border: 2px dashed var(--gc); }
-.group__swatch--rius, .group__swatch--estrets { height: 4px; border-radius: 2px; }
-.group__pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.group__swatch--mountains { background: repeating-linear-gradient(135deg, var(--gc) 0 3px, #fff 3px 5px); }
+.group__swatch--peninsulas { background: transparent; border: 2px dashed var(--gc); }
+.group__swatch--rivers, .group__swatch--straits { height: 4px; border-radius: 2px; }
+.group__pills { display: flex; flex-wrap: wrap; gap: .35em; }
 .group.is-empty { display: none; }
-.tray__done { display: none; margin-top: 18px; padding: 14px; border-radius: var(--radius); background: #EAF6EC; color: var(--c-illes); font-weight: 700; text-align: center; }
+.tray__done { display: none; margin: 0; padding: 1em; border-radius: var(--radius); background: #EAF6EC; color: var(--colour-islands); font-weight: 700; text-align: center; }
 .tray.is-complete .tray__done { display: block; }
 .tray.is-complete .tray__help { display: none; }
 
 /* Legend (reference mode) */
-.tray__reset { display: none; align-items: center; gap: 8px; margin: 0 0 14px; padding: 7px 14px; font-size: 14px; }
+.tray__reset { display: none; align-items: center; gap: .55em; margin: 0; padding: .4em .9em; font-size: 1em; flex: none; }
 .tray__reset:disabled { opacity: .45; cursor: default; }
 .tray__reset:disabled:hover { background: transparent; }
-.game.is-consulta .tray__help { display: none; }
-.game.is-consulta .tray__reset { display: flex; margin-left: auto; }
+.game.is-reference .tray__help { display: none; }
+.game.is-reference .tray__reset { display: flex; margin-left: auto; }
 .group__count { margin-left: auto; font-weight: 700; letter-spacing: 0; }
 .group__eye {
-  display: grid; place-items: center; width: 30px; height: 30px; padding: 0; flex: none;
+  display: grid; place-items: center; width: 2.2em; height: 2.2em; margin: -.3em 0; padding: 0; flex: none;
   border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
 }
 .group__eye:hover { background: var(--bg); color: var(--ink); }
 .group__eye[aria-pressed="true"] { background: var(--gc); color: #fff; }
-.group__eye .icon { width: 19px; height: 19px; }
-.group--legend .group__title { margin-bottom: 4px; }
+.group__eye .icon { width: 1.5em; height: 1.5em; }
 .group--legend.is-off .group__swatch { opacity: .25; }
 .group--legend.is-off .group__name { text-decoration: line-through; }
 .group--legend.is-off .group__pills { display: none; }
+.tray.is-measuring .group--legend.is-off .group__pills { display: flex; }
 .pill--static { cursor: pointer; touch-action: auto; }
 .pill--static.is-focus { background: var(--gc); color: #fff; }
 
 .pill {
-  font: inherit; font-size: 14.5px; font-weight: 650; line-height: 1.2;
-  padding: 7px 13px; border-radius: 999px; cursor: grab;
+  font: inherit; font-size: 1em; font-weight: 650; line-height: 1.2;
+  padding: .3em .65em; border-radius: var(--pill-radius); cursor: grab;
   background: color-mix(in srgb, var(--gc) 12%, #fff); color: var(--gc);
-  border: 2px solid var(--gc); touch-action: none; user-select: none; -webkit-user-select: none;
+  border: 1.5px solid var(--gc); touch-action: none; user-select: none; -webkit-user-select: none;
   transition: opacity .15s, transform .15s;
 }
 .pill:hover { background: color-mix(in srgb, var(--gc) 20%, #fff); }
-.pill--serralades { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gc) 10%, #fff) 0 6px, color-mix(in srgb, var(--gc) 20%, #fff) 6px 9px); }
-.pill--peninsules { border-style: dashed; }
+.pill--mountains { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gc) 10%, #fff) 0 6px, color-mix(in srgb, var(--gc) 20%, #fff) 6px 9px); }
+.pill--peninsulas { border-style: dashed; }
 .pill.is-source { opacity: .25; }
 .pill.is-gone { transform: scale(.6); opacity: 0; }
 
@@ -182,23 +199,23 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 .hl .fill { fill: var(--gc); fill-opacity: .32; }
 .hl .halo { fill: none; stroke: #fff; stroke-width: 6; stroke-linejoin: round; }
 .hl .edge { fill: none; stroke: var(--gc); stroke-width: 3; stroke-linejoin: round; }
-.hl--serralades .fill { fill: url(#pat-serralades); fill-opacity: 1; }
-.hl--peninsules .fill { fill-opacity: .16; }
-.hl--peninsules .edge { stroke-dasharray: 10 6; stroke-width: 3.5; }
-.hl--mars .fill, .hl--golfs .fill { fill-opacity: .38; }
-.hl--mars .edge, .hl--golfs .edge { stroke-dasharray: 7 4; }
-.hl--llacs .fill { fill-opacity: .75; }
-.hl--rius .halo { stroke-width: 9; stroke-linecap: round; }
-.hl--rius .edge { stroke-width: 4.5; stroke-linecap: round; }
-.hl--estrets .halo { stroke-width: 12; stroke-linecap: round; }
-.hl--estrets .edge { stroke-width: 5.5; stroke-linecap: round; }
+.hl--mountains .fill { fill: url(#pattern-mountains); fill-opacity: 1; }
+.hl--peninsulas .fill { fill-opacity: .16; }
+.hl--peninsulas .edge { stroke-dasharray: 10 6; stroke-width: 3.5; }
+.hl--seas .fill, .hl--gulfs .fill { fill-opacity: .38; }
+.hl--seas .edge, .hl--gulfs .edge { stroke-dasharray: 7 4; }
+.hl--lakes .fill { fill-opacity: .75; }
+.hl--rivers .halo { stroke-width: 9; stroke-linecap: round; }
+.hl--rivers .edge { stroke-width: 4.5; stroke-linecap: round; }
+.hl--straits .halo { stroke-width: 12; stroke-linecap: round; }
+.hl--straits .edge { stroke-width: 5.5; stroke-linecap: round; }
 .peak { fill: var(--gc); stroke: #fff; stroke-width: 2; }
 
 .dot { cursor: default; }
 .dot .ring { fill: #fff; stroke: #26323B; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; transition: transform .12s, stroke .12s, fill .12s; }
 .dot .hit { fill: transparent; }
 .dot.is-target .ring { transform: scale(1.7); stroke: #FFB300; stroke-width: 3; }
-.dot.is-wrong .ring { stroke: var(--c-serralades); fill: #FFD7D7; }
+.dot.is-wrong .ring { stroke: var(--colour-mountains); fill: #FFD7D7; }
 .dot.is-done .ring { transform: scale(.75); fill: var(--gc); stroke: #fff; stroke-width: 2; }
 
 .lbl { opacity: 0; transition: opacity .5s .15s; pointer-events: none; }
@@ -233,7 +250,7 @@ svg.has-focus .hl:not(.is-focus), svg.has-focus .lbl:not(.is-focus), svg.has-foc
 /* ============ Portrait tablet: tray below the map ============ */
 @media (orientation: portrait) and (max-width: 1100px) {
   .game__body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-  .tray { border-left: 0; border-top: 1px solid var(--line); max-height: 34vh; }
+  .tray { max-height: 34vh; }
 }
 @media (max-width: 900px) {
   .topbar { gap: 10px; padding: 8px 12px; }

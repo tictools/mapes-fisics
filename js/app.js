@@ -25,7 +25,7 @@
  * @typedef {object} Feature
  * @property {string} id      unique within the map (lowercase ascii)
  * @property {string} name    name shown in the tray and on the label (Catalan)
- * @property {string} group   group name, e.g. "Rius"; slug(group) is a key of GROUP_COLORS
+ * @property {string} group   group name, e.g. "Rius"; GROUP_KEYS maps it to a key of GROUP_COLOURS
  * @property {'area' | 'river' | 'line' | 'peak'} kind
  * @property {string} [d]     SVG path of the highlight (absent for peaks)
  * @property {Point} dot      answer point
@@ -43,7 +43,7 @@
 
 /** @typedef {Window & { MAP_DATA?: Record<string, MapData> }} MapWindow */
 
-/** @typedef {'activitat' | 'consulta'} Mode */
+/** @typedef {'play' | 'reference'} Mode */
 
 (() => {
   'use strict';
@@ -53,7 +53,9 @@
   // ------------------------------------------------------------------ maps and routes
   const MAPS = ['europa', 'asia', 'africa', 'america'];
   /** @type {{ PLAY: Mode, REFERENCE: Mode }} */
-  const MODE = { PLAY: 'activitat', REFERENCE: 'consulta' };
+  const MODE = { PLAY: 'play', REFERENCE: 'reference' };
+  /** Route segment of the reference map, after the map id (user-facing URL, Catalan) */
+  const REFERENCE_ROUTE = 'consulta';
   const ROUTE_PREFIX = /^#\/?/;
   const ROUTE_SEPARATOR = '/';
   const HOME_HASH = '';
@@ -61,7 +63,7 @@
   /** @param {string} mapId */
   const playHash = (mapId) => `#/${mapId}`;
   /** @param {string} mapId */
-  const referenceHash = (mapId) => `#/${mapId}/${MODE.REFERENCE}`;
+  const referenceHash = (mapId) => `#/${mapId}/${REFERENCE_ROUTE}`;
   /** @param {string} mapId */
   const dataUrl = (mapId) => `${DATA_DIR}/${mapId}.js`;
 
@@ -126,10 +128,12 @@
 
   // ------------------------------------------------------------------ CSS classes and custom properties (css/styles.css)
   const CSS = {
-    groupColor: '--gc',
+    groupColour: '--gc',
     mapLoading: 'map-loading',
-    gameReference: 'is-consulta',
+    gameReference: 'is-reference',
     trayComplete: 'is-complete',
+    trayMeasuring: 'is-measuring',
+    trayTwoColumns: 'is-two-columns',
     group: 'group',
     groupLegend: 'group--legend',
     groupTitle: 'group__title',
@@ -170,7 +174,7 @@
     label: 'lbl',
     labelOn: 'is-on',
   };
-  /** BEM modifier of a block for a group key: ('pill', 'rius') -> 'pill--rius' */
+  /** BEM modifier of a block for a group key: ('pill', 'rivers') -> 'pill--rivers' */
   const modifier = (/** @type {string} */ block, /** @type {string} */ key) => `${block}--${key}`;
 
   // ------------------------------------------------------------------ data attributes and ARIA values
@@ -184,20 +188,29 @@
 
   // ------------------------------------------------------------------ icons (sprite in index.html)
   const ICON_EYE = '#icon-eye';
+  const ICON_EYE_OFF = '#icon-eye-off';
+  const HREF = 'href';
 
   // ------------------------------------------------------------------ groups
-  /** Group colours, by group key (same values as the --c-* variables in css/styles.css). */
+  /** Group key (CSS/JS) of each group name, as written in the data (Catalan, user-facing). */
   /** @type {Record<string, string>} */
-  const GROUP_COLORS = {
-    rius: '#1E6FE0', serralades: '#C62828', mars: '#00A5B5', peninsules: '#7B1FA2', illes: '#2E7D32',
-    planes: '#D9A300', llacs: '#1A237E', deserts: '#EF6C00', estrets: '#111111', golfs: '#E8558A',
-    arxipelegs: '#795548',
+  const GROUP_KEYS = {
+    'Rius': 'rivers', 'Serralades': 'mountains', 'Mars': 'seas', 'Penínsules': 'peninsulas', 'Illes': 'islands',
+    'Planes': 'plains', 'Llacs': 'lakes', 'Deserts': 'deserts', 'Estrets': 'straits', 'Golfs': 'gulfs',
+    'Arxipèlegs': 'archipelagos',
+  };
+  /** Group colours, by group key (same values as the --colour-* variables in css/styles.css). */
+  /** @type {Record<string, string>} */
+  const GROUP_COLOURS = {
+    rivers: '#1E6FE0', mountains: '#C62828', seas: '#00A5B5', peninsulas: '#7B1FA2', islands: '#2E7D32',
+    plains: '#D9A300', lakes: '#1A237E', deserts: '#EF6C00', straits: '#111111', gulfs: '#E8558A',
+    archipelagos: '#795548',
   };
   /** Drawing order of highlighted areas (large ones below, lines on top), by group key. */
   /** @type {Record<string, number>} */
-  const LAYER_ORDER = { peninsules: 0, planes: 1, deserts: 1, mars: 2, golfs: 2, serralades: 3, illes: 3,
-    arxipelegs: 3, llacs: 4, rius: 5, estrets: 6 };
-  const MOUNTAIN_GROUP = 'serralades';
+  const LAYER_ORDER = { peninsulas: 0, plains: 1, deserts: 1, seas: 2, gulfs: 2, mountains: 3, islands: 3,
+    archipelagos: 3, lakes: 4, rivers: 5, straits: 6 };
+  const MOUNTAIN_GROUP = 'mountains';
   const KIND = { AREA: 'area', RIVER: 'river', LINE: 'line', PEAK: 'peak' };
 
   // ------------------------------------------------------------------ SVG drawing (viewBox units)
@@ -213,7 +226,7 @@
     ['mountains', 'b-mtn', false], ['lakes', 'b-lake', false], ['rivers', 'b-riv', false],
   ];
   const MOUNTAIN_PATTERN = {
-    id: 'pat-serralades', width: 14, height: 12, units: 'userSpaceOnUse',
+    id: 'pattern-mountains', width: 14, height: 12, units: 'userSpaceOnUse',
     backgroundOpacity: 0.22, triangle: 'M2 10.5L7 2.5L12 10.5Z', triangleOpacity: 0.75,
   };
   const DOT_RADIUS = 7;
@@ -223,6 +236,14 @@
   const LABEL_HALF_LINE = 13; // shift up per extra line, to keep a two-line label centred
   const LABEL_MAX_CHARS = 17; // longer names wrap onto two lines
   const SPACE = ' ';
+
+  // ------------------------------------------------------------------ tray fitting (both modes)
+  /** Font size (px) of the tray: lowered from max by step until it fits. */
+  const TRAY_FONT_PX = { max: 14, step: 0.5 };
+  /** Tray layouts tried in order, each down to its minimum font size; the last one is kept if nothing fits. */
+  const TRAY_LAYOUTS = [{ twoColumns: false, minFontPx: 12 }, { twoColumns: true, minFontPx: 10 }];
+  const TRAY_FONT_PROPERTY = '--tray-font-size';
+  const PX = 'px';
 
   // ------------------------------------------------------------------ interaction
   const SNAP_PX = 30; // max distance (screen px) between finger/mouse and a dot for it to count as the drop target
@@ -243,15 +264,12 @@
   const MOBILE_OK_KEY = 'mobile-ok';
   const MOBILE_OK_VALUE = '1';
 
-  const COMBINING_ACCENTS = /[̀-ͯ]/g;
-  const NFD = 'NFD';
-
   // ================================================================== helpers
 
   /** @type {(selector: string) => HTMLElement} */
   const query = (selector) => /** @type {HTMLElement} */ (document.querySelector(selector));
-  /** Group name to CSS-friendly key: "Penínsules" -> "peninsules" */
-  const slug = (/** @type {string} */ text) => text.normalize(NFD).replace(COMBINING_ACCENTS, '').toLowerCase();
+  /** Group name to its CSS/JS key: "Penínsules" -> "peninsulas" */
+  const groupKeyOf = (/** @type {string} */ groupName) => GROUP_KEYS[groupName];
   /** CSS selector of the nodes of one feature, e.g. `.hl[data-id="alps"]` */
   const featureSelector = (/** @type {string} */ cssClass, /** @type {string} */ featureId) =>
     `.${cssClass}[${DATA_ID}="${featureId}"]`;
@@ -296,6 +314,7 @@
    * @property {string} name
    * @property {HTMLElement} section
    * @property {HTMLButtonElement} eyeButton
+   * @property {SVGUseElement} eyeIcon  eye, or crossed-out eye while the group's card is hidden
    */
   /**
    * Reference map visibility: `shownGroups` holds the keys of the groups picked with their eye;
@@ -335,7 +354,7 @@
    */
   function parseHash() {
     const [mapId, mode, ...rest] = location.hash.replace(ROUTE_PREFIX, '').split(ROUTE_SEPARATOR);
-    if (!MAPS.includes(mapId) || rest.length || (mode && mode !== MODE.REFERENCE)) return null;
+    if (!MAPS.includes(mapId) || rest.length || (mode && mode !== REFERENCE_ROUTE)) return null;
     return { id: mapId, mode: mode ? MODE.REFERENCE : MODE.PLAY };
   }
   function route() {
@@ -429,7 +448,7 @@
     buildTray(data);
   }
 
-  // ================================================================== reference map (consulta)
+  // ================================================================== reference map
   /** Same map as the activity, with every feature already shown as solved. @param {MapData} data */
   function startReference(data) {
     resetState(data);
@@ -449,7 +468,7 @@
   function groupSection(groupKey, extraClass) {
     const section = document.createElement('section');
     section.className = [CSS.group, extraClass].filter(Boolean).join(SPACE);
-    section.style.setProperty(CSS.groupColor, GROUP_COLORS[groupKey]);
+    section.style.setProperty(CSS.groupColour, GROUP_COLOURS[groupKey]);
     return section;
   }
 
@@ -470,7 +489,7 @@
     pill.className = [CSS.pill, modifier(CSS.pill, groupKey), extraClass].filter(Boolean).join(SPACE);
     pill.textContent = feature.name;
     pill.dataset.id = feature.id;
-    pill.style.setProperty(CSS.groupColor, GROUP_COLORS[groupKey]);
+    pill.style.setProperty(CSS.groupColour, GROUP_COLOURS[groupKey]);
     return pill;
   }
 
@@ -483,7 +502,7 @@
     root.innerHTML = '';
     state.legend = { groups: new Map(), shownGroups: new Set() };
     for (const groupName of groupsOf(data)) {
-      const groupKey = slug(groupName);
+      const groupKey = groupKeyOf(groupName);
       const features = data.features.filter((feature) => feature.group === groupName)
         .sort((first, second) => first.name.localeCompare(second.name, LOCALE));
       const section = groupSection(groupKey, CSS.groupLegend);
@@ -493,7 +512,7 @@
       const count = document.createElement('span');
       count.className = CSS.groupCount;
       count.textContent = String(features.length);
-      const eyeButton = groupEyeButton(() => toggleShownGroup(groupKey));
+      const { button: eyeButton, icon: eyeIcon } = groupEyeButton(() => toggleShownGroup(groupKey));
       title.append(count, eyeButton);
       section.appendChild(title);
       const pills = document.createElement('div');
@@ -505,20 +524,42 @@
       }
       section.appendChild(pills);
       root.appendChild(section);
-      state.legend.groups.set(groupKey, { name: groupName, section, eyeButton });
+      state.legend.groups.set(groupKey, { name: groupName, section, eyeButton, eyeIcon });
     }
     applyVisibility();
+    fitTray();
   }
 
-  /** The eye toggle of a legend group (labels are set by applyVisibility). @param {() => void} onClick */
+  /**
+   * Picks the first tray layout and the largest font size at which the tray, with every group
+   * expanded, fits without scrolling (it still scrolls if nothing fits). Used by both modes.
+   */
+  function fitTray() {
+    const tray = query(ID.tray);
+    const overflows = () => tray.scrollHeight > tray.clientHeight;
+    tray.classList.add(CSS.trayMeasuring);
+    for (const layout of TRAY_LAYOUTS) {
+      tray.classList.toggle(CSS.trayTwoColumns, layout.twoColumns);
+      let fontSize = TRAY_FONT_PX.max;
+      tray.style.setProperty(TRAY_FONT_PROPERTY, fontSize + PX);
+      while (overflows() && fontSize > layout.minFontPx) {
+        fontSize -= TRAY_FONT_PX.step;
+        tray.style.setProperty(TRAY_FONT_PROPERTY, fontSize + PX);
+      }
+      if (!overflows()) break;
+    }
+    tray.classList.remove(CSS.trayMeasuring);
+  }
+
+  /** The eye toggle of a legend group (icon and labels are set by applyVisibility). @param {() => void} onClick */
   function groupEyeButton(onClick) {
     const button = document.createElement('button');
     button.type = BUTTON_TYPE;
     button.className = CSS.groupEye;
     const svg = svgElement('svg', { class: CSS.icon, 'aria-hidden': String(true) }, button);
-    svgElement('use', { href: ICON_EYE }, svg);
+    const icon = svgElement('use', { [HREF]: ICON_EYE }, svg);
     button.addEventListener('click', onClick);
-    return button;
+    return { button, icon };
   }
 
   /**
@@ -560,6 +601,7 @@
       const isShown = shownGroups.has(groupKey);
       group.section.classList.toggle(CSS.groupOff, !isVisible);
       group.eyeButton.setAttribute(ARIA_PRESSED, String(isShown));
+      group.eyeIcon.setAttribute(HREF, isVisible ? ICON_EYE : ICON_EYE_OFF);
       const label = eyeLabel(group.name, isShown, shownGroups.size);
       group.eyeButton.title = label;
       group.eyeButton.setAttribute(ARIA_LABEL, label);
@@ -570,7 +612,7 @@
     }
     const focusedId = svg ? svg.dataset.focus : undefined;
     const focused = focusedId ? state.dots.get(focusedId) : undefined;
-    if (focused && !isGroupVisible(slug(focused.feature.group))) clearFocus();
+    if (focused && !isGroupVisible(groupKeyOf(focused.feature.group))) clearFocus();
     updateResetButton();
   }
 
@@ -636,8 +678,8 @@
     const pattern = svgElement('pattern', { id: MOUNTAIN_PATTERN.id, width: MOUNTAIN_PATTERN.width,
       height: MOUNTAIN_PATTERN.height, patternUnits: MOUNTAIN_PATTERN.units }, defs);
     svgElement('rect', { width: MOUNTAIN_PATTERN.width, height: MOUNTAIN_PATTERN.height,
-      fill: GROUP_COLORS[MOUNTAIN_GROUP], 'fill-opacity': MOUNTAIN_PATTERN.backgroundOpacity }, pattern);
-    svgElement('path', { d: MOUNTAIN_PATTERN.triangle, fill: GROUP_COLORS[MOUNTAIN_GROUP],
+      fill: GROUP_COLOURS[MOUNTAIN_GROUP], 'fill-opacity': MOUNTAIN_PATTERN.backgroundOpacity }, pattern);
+    svgElement('path', { d: MOUNTAIN_PATTERN.triangle, fill: GROUP_COLOURS[MOUNTAIN_GROUP],
       'fill-opacity': MOUNTAIN_PATTERN.triangleOpacity }, pattern);
 
     // Blank map base
@@ -649,7 +691,7 @@
     // Highlighted areas (large ones below, lines on top)
     const highlightLayer = svgElement('g', { class: CSS.highlights }, svg);
     const ordered = [...data.features].sort((first, second) =>
-      LAYER_ORDER[slug(first.group)] - LAYER_ORDER[slug(second.group)]);
+      LAYER_ORDER[groupKeyOf(first.group)] - LAYER_ORDER[groupKeyOf(second.group)]);
     for (const feature of ordered) drawHighlight(highlightLayer, feature);
 
     const dotLayer = svgElement('g', { class: CSS.dots }, svg);
@@ -663,14 +705,14 @@
 
   /** Common attributes of every SVG node that belongs to a feature. @param {Feature} feature @param {string} cssClass */
   const featureAttributes = (feature, cssClass) => {
-    const groupKey = slug(feature.group);
+    const groupKey = groupKeyOf(feature.group);
     return { class: cssClass, [DATA_ID]: feature.id, [DATA_GROUP]: groupKey,
-      style: `${CSS.groupColor}:${GROUP_COLORS[groupKey]}` };
+      style: `${CSS.groupColour}:${GROUP_COLOURS[groupKey]}` };
   };
 
   /** @param {SVGElement} parent @param {Feature} feature */
   function drawHighlight(parent, feature) {
-    const groupKey = slug(feature.group);
+    const groupKey = groupKeyOf(feature.group);
     const highlight = svgElement('g', featureAttributes(feature, `${CSS.highlight} ${modifier(CSS.highlight, groupKey)}`), parent);
     const path = feature.d;
     if (path && feature.kind === KIND.AREA) {
@@ -741,7 +783,7 @@
     const root = query(ID.trayGroups);
     root.innerHTML = '';
     for (const groupName of groupsOf(data)) {
-      const groupKey = slug(groupName);
+      const groupKey = groupKeyOf(groupName);
       const section = groupSection(groupKey, '');
       const title = document.createElement('h3');
       title.className = CSS.groupTitle;
@@ -757,6 +799,7 @@
       section.appendChild(pills);
       root.appendChild(section);
     }
+    fitTray();
   }
 
   // ================================================================== drag and drop
@@ -771,6 +814,7 @@
     const ghost = /** @type {HTMLElement} */ (pill.cloneNode(true));
     ghost.classList.add(CSS.pillGhost);
     ghost.style.width = `${rect.width}px`;
+    ghost.style.fontSize = getComputedStyle(pill).fontSize; // the tray font size is not inherited outside the tray
     document.body.appendChild(ghost);
     pill.classList.add(CSS.pillSource);
     document.body.classList.add(CSS.dragging);
@@ -939,6 +983,7 @@
     });
     query(ID.doneHome).addEventListener('click', goHome);
     window.addEventListener('hashchange', route);
+    window.addEventListener('resize', fitTray);
     route();
   }
 
