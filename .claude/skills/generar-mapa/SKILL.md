@@ -180,8 +180,12 @@ confirm the page has the new data before judging it.
 - Pending features (left out of the config) and the question each one needs answered.
 - Ambiguous / not found features and how each was resolved.
 - Anything left to decide or check.
+- The files changed, left uncommitted, and the question whether to commit them.
 
 ## Conventions
+
+If you change code (`js/app.js`, `tools/*.py`), follow the clean-code rules and run the checks in
+`AGENTS.md` (constants for literals, descriptive names, `tsc --strict`).
 
 - Groups, colours and distinguishing marks: `references/groups.md`. Do not reuse a colour.
 - Choice of Natural Earth layer per group: `references/groups.md` and `references/ne-layers.md`.
@@ -199,7 +203,9 @@ confirm the page has the new data before judging it.
 
 ## What not to do
 
+- Do not commit anything without the engineer's explicit authorisation (see `AGENTS.md`,
+  "Workflow"): leave the changes uncommitted, report them (step 8) and ask.
 - Do not edit `data/*.js` by hand: change the config and regenerate.
-- Do not commit `tools/natural-earth-vector/` or a virtualenv.
+- Never commit `tools/natural-earth-vector/` or a virtualenv.
 - Do not invent coordinates, geometry or Natural Earth names: search, then ask.
 - Do not change another region's output as a side effect.
