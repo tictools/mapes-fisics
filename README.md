@@ -5,18 +5,22 @@ An interactive activity for placing geographical features on a blank map. Drag e
 - **If you get it right**, the name disappears from the tray and the area or river is highlighted on the map in its group colour, together with its name.
 - **If you get it wrong**, the name returns to its place and an error is counted.
 
+Each map also has a **reference map** (*Mapa de consulta*) with every feature already placed, highlighted and labelled. Its legend lets you hide or show each group and focus on a single feature. You can switch between the activity and the reference map from the top bar.
+
 It works on **computers and tablets**. On a mobile phone it shows a notice, as the screen is too small for the activity.
 
 ## Structure
 
 ```
-index.html          Single page: start screen (Europe | Asia), activity and notices
+index.html          Single page: start screen (Europe | Asia), activity, reference map and notices
 css/styles.css      Styles and group colours (CSS variables at the top)
-js/app.js           Logic: navigation (#/europa, #/asia), SVG map, drag and drop
+js/app.js           Logic: navigation, SVG map (shared by both modes), drag and drop, legend
 data/europa.js      Blank map + features of Europe (generated)
 data/asia.js        Blank map + features of Asia (generated)
 tools/generate_maps.py   Script that generates data/*.js from Natural Earth
 ```
+
+Routes: `#/europa` and `#/asia` open the activity; `#/europa/consulta` and `#/asia/consulta` open the reference map.
 
 It is plain HTML, CSS and JavaScript with no dependencies or build step. Dragging uses Pointer Events, which work with both mouse and touchscreen.
 

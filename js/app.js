@@ -1,4 +1,4 @@
-/* Physical maps · Europe and Asia — drag-and-drop activity.
+/* Physical maps · Europe and Asia — drag-and-drop activity and reference map.
    Vanilla JavaScript. Dragging uses Pointer Events, which behave the same with mouse,
    pen and touchscreen (unlike the HTML5 drag & drop API, which doesn't work with a finger). */
 (() => {
@@ -30,7 +30,8 @@
   };
 
   // ------------------------------------------------------------------ state
-  const state = { map: null, svg: null, dots: new Map(), solved: new Set(), errors: 0, drag: null };
+  const MAPS = ['europa', 'asia'];
+  const state = { map: null, mode: 'activitat', svg: null, dots: new Map(), solved: new Set(), errors: 0, drag: null };
 
   // ------------------------------------------------------------------ mobile warning
   function isPhone() {
@@ -48,10 +49,16 @@
     });
   }
 
-  // ------------------------------------------------------------------ routing (#europa / #asia)
+  // ------------------------------------------------------------------ routing (#/europa, #/europa/consulta)
+  // Returns { id, mode } for a valid hash, or null for the landing page.
+  function parseHash() {
+    const [id, mode, ...rest] = location.hash.replace(/^#\/?/, '').split('/');
+    if (!MAPS.includes(id) || rest.length || (mode && mode !== 'consulta')) return null;
+    return { id, mode: mode ? 'consulta' : 'activitat' };
+  }
   function route() {
-    const id = location.hash.replace(/^#\/?/, '');
-    if (id === 'europa' || id === 'asia') openMap(id);
+    const r = parseHash();
+    if (r) openMap(r.id, r.mode);
     else showLanding();
   }
   function showLanding() {
@@ -71,18 +78,37 @@
     });
   }
 
-  async function openMap(id) {
+  async function openMap(id, mode) {
     $('#landing').hidden = true; $('#game').hidden = false; $('#done').hidden = true;
+    setMode(id, mode);
     const wrap = $('#map-wrap');
     wrap.innerHTML = '<div class="map-loading">Carregant el mapa…</div>';
     $('#tray-groups').innerHTML = '';
     try {
       const data = await loadData(id);
-      if (location.hash.replace(/^#\/?/, '') !== id) return; // the user has already navigated away
-      startGame(data);
+      const r = parseHash();
+      if (!r || r.id !== id || r.mode !== mode) return; // the user has already navigated away
+      if (mode === 'consulta') startReference(data);
+      else startGame(data);
     } catch (err) {
       wrap.innerHTML = `<div class="map-loading">${err.message}</div>`;
     }
+  }
+
+  // Topbar mode switch, tray texts and links that depend on the current map and mode
+  function setMode(id, mode) {
+    state.mode = mode;
+    $('#game').classList.toggle('is-consulta', mode === 'consulta');
+    for (const [sel, m, href] of [['#mode-play', 'activitat', `#/${id}`], ['#mode-ref', 'consulta', `#/${id}/consulta`]]) {
+      const a = $(sel);
+      a.href = href;
+      if (m === mode) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    }
+    $('#done-ref').href = `#/${id}/consulta`;
+    $('#tray').setAttribute('aria-label', mode === 'consulta' ? 'Llegenda del mapa de consulta' : 'Accidents geogràfics per situar');
+    $('#tray-help').textContent = mode === 'consulta'
+      ? 'Toca un grup per amagar-lo o mostrar-lo, i un nom per destacar-lo al mapa.'
+      : 'Arrossega cada nom fins al punt correcte.';
   }
 
   // ------------------------------------------------------------------ game
@@ -92,9 +118,79 @@
     document.title = `${data.title} · Mapa físic`;
     $('#stat-total').textContent = data.features.length;
     updateStats();
-    document.querySelector('.tray').classList.remove('is-complete');
-    buildMap(data);
+    $('#tray').classList.remove('is-complete');
+    buildMap(data, `Mapa mut de ${data.title}`);
     buildTray(data);
+  }
+
+  // ------------------------------------------------------------------ reference map (consulta)
+  // Same map as the activity, with every feature already shown as solved.
+  function startReference(data) {
+    state.map = data; state.solved = new Set(); state.errors = 0; state.dots = new Map();
+    $('#map-title').textContent = data.title;
+    document.title = `${data.title} · Mapa de consulta`;
+    $('#tray').classList.remove('is-complete');
+    buildMap(data, `Mapa de consulta de ${data.title}`);
+    state.svg.classList.add('is-static');
+    for (const f of data.features) reveal(f.id);
+    buildLegend(data);
+  }
+
+  // Tray in reference mode: one section per group, toggling the group on the map,
+  // with the feature names (clicking one focuses it on the map).
+  function buildLegend(data) {
+    const root = $('#tray-groups');
+    root.innerHTML = '';
+    for (const name of groupsOf(data)) {
+      const g = slug(name);
+      const feats = data.features.filter((x) => x.group === name).sort((a, c) => a.name.localeCompare(c.name, 'ca'));
+      const sec = document.createElement('section');
+      sec.className = 'group group--legend'; sec.style.setProperty('--gc', GROUP_COLORS[g]);
+      const head = document.createElement('button');
+      head.type = 'button'; head.className = 'group__title group__toggle';
+      head.setAttribute('aria-pressed', 'true');
+      head.innerHTML = `<span class="group__swatch group__swatch--${g}"></span>${name} <span class="group__count">${feats.length}</span>`;
+      head.addEventListener('click', () => {
+        const on = head.getAttribute('aria-pressed') !== 'true';
+        head.setAttribute('aria-pressed', String(on));
+        sec.classList.toggle('is-off', !on);
+        state.svg.querySelectorAll(`[data-group="${g}"]`).forEach((n) => n.classList.toggle('is-hidden', !on));
+      });
+      sec.appendChild(head);
+      const box = document.createElement('div');
+      box.className = 'group__pills';
+      for (const f of feats) {
+        const p = document.createElement('button');
+        p.type = 'button';
+        p.className = `pill pill--${g} pill--static`;
+        p.textContent = f.name;
+        p.dataset.id = f.id;
+        p.style.setProperty('--gc', GROUP_COLORS[g]);
+        p.addEventListener('click', () => focusFeature(f.id));
+        box.appendChild(p);
+      }
+      sec.appendChild(box);
+      root.appendChild(sec);
+    }
+  }
+
+  // Highlights one feature and dims the rest; clicking it again clears the focus.
+  function focusFeature(id) {
+    const svg = state.svg;
+    const same = svg.dataset.focus === id;
+    svg.querySelectorAll('.is-focus').forEach((n) => n.classList.remove('is-focus'));
+    document.querySelectorAll('.pill--static.is-focus').forEach((n) => n.classList.remove('is-focus'));
+    if (same) { delete svg.dataset.focus; svg.classList.remove('has-focus'); return; }
+    svg.dataset.focus = id;
+    svg.classList.add('has-focus');
+    svg.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.classList.add('is-focus'));
+    document.querySelector(`.pill--static[data-id="${id}"]`).classList.add('is-focus');
+  }
+
+  function groupsOf(data) {
+    const groups = [];
+    for (const f of data.features) if (!groups.includes(f.group)) groups.push(f.group);
+    return groups;
   }
 
   function updateStats() {
@@ -102,11 +198,14 @@
     $('#stat-err').textContent = state.errors;
   }
 
-  function buildMap(data) {
+  // ------------------------------------------------------------------ map rendering (shared by both modes)
+  // Draws the blank map with every feature's highlight, dot and label. Highlights and labels
+  // start hidden; reveal() shows a feature as solved.
+  function buildMap(data, ariaLabel) {
     const wrap = $('#map-wrap');
     wrap.innerHTML = '';
     const [x, y, w, h] = data.viewBox;
-    const svg = el('svg', { viewBox: `${x} ${y} ${w} ${h}`, role: 'img', 'aria-label': `Mapa mut de ${data.title}` });
+    const svg = el('svg', { viewBox: `${x} ${y} ${w} ${h}`, role: 'img', 'aria-label': ariaLabel });
     state.svg = svg;
 
     // Triangle pattern for mountain ranges
@@ -125,48 +224,66 @@
     el('path', { class: 'b-lake', d: b.lakes }, base);
     el('path', { class: 'b-riv', d: b.rivers }, base);
 
-    // Highlighted areas (hidden until answered correctly)
+    // Highlighted areas (large ones below, lines on top)
     const hlLayer = el('g', { class: 'highlights' }, svg);
     const ordered = [...data.features].sort((a, c) => LAYER_ORDER[slug(a.group)] - LAYER_ORDER[slug(c.group)]);
-    for (const f of ordered) {
-      const g = slug(f.group);
-      const hl = el('g', { class: `hl hl--${g}`, 'data-id': f.id, style: `--gc:${GROUP_COLORS[g]}` }, hlLayer);
-      if (f.kind === 'area') {
-        el('path', { class: 'fill', d: f.d, 'fill-rule': 'evenodd' }, hl);
-        el('path', { class: 'halo', d: f.d }, hl);
-        el('path', { class: 'edge', d: f.d }, hl);
-      } else if (f.kind === 'river' || f.kind === 'line') {
-        el('path', { class: 'halo', d: f.d }, hl);
-        el('path', { class: 'edge', d: f.d }, hl);
-      } else if (f.kind === 'peak') {
-        const [px, py] = f.dot;
-        el('path', { class: 'peak', d: `M${px} ${py - 15}L${px + 12} ${py + 7}L${px - 12} ${py + 7}Z` }, hl);
-      }
-    }
+    for (const f of ordered) drawHighlight(hlLayer, f);
 
-    // Dots
     const dotLayer = el('g', { class: 'dots' }, svg);
-    for (const f of data.features) {
-      const g = el('g', { class: 'dot', 'data-id': f.id, style: `--gc:${GROUP_COLORS[slug(f.group)]}` }, dotLayer);
-      el('circle', { class: 'ring', cx: f.dot[0], cy: f.dot[1], r: 7 }, g);
-      state.dots.set(f.id, { f, node: g });
-    }
+    for (const f of data.features) state.dots.set(f.id, { f, node: drawDot(dotLayer, f) });
 
-    // Labels (hidden until answered correctly)
     const lblLayer = el('g', { class: 'labels' }, svg);
-    for (const f of data.features) {
-      const g = el('g', { class: 'lbl', 'data-id': f.id, style: `--gc:${GROUP_COLORS[slug(f.group)]}` }, lblLayer);
-      const [dx, dy] = f.dot, [lx, ly] = f.label;
-      if (Math.hypot(lx - dx, ly - dy) > 30) el('line', { x1: dx, y1: dy, x2: lx, y2: ly }, g);
-      const lines = splitLabel(f.name);
-      const t = el('text', { x: lx, y: ly - (lines.length - 1) * 13, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, g);
-      lines.forEach((ln, i) => {
-        const ts = el('tspan', { x: lx, dy: i ? 27 : 0 }, t);
-        ts.textContent = ln;
-      });
-    }
+    for (const f of data.features) drawLabel(lblLayer, f);
 
     wrap.appendChild(svg);
+  }
+
+  // Common attributes of every SVG node that belongs to a feature
+  const featAttrs = (f, cls) => {
+    const g = slug(f.group);
+    return { class: cls, 'data-id': f.id, 'data-group': g, style: `--gc:${GROUP_COLORS[g]}` };
+  };
+
+  function drawHighlight(parent, f) {
+    const hl = el('g', featAttrs(f, `hl hl--${slug(f.group)}`), parent);
+    if (f.kind === 'area') {
+      el('path', { class: 'fill', d: f.d, 'fill-rule': 'evenodd' }, hl);
+      el('path', { class: 'halo', d: f.d }, hl);
+      el('path', { class: 'edge', d: f.d }, hl);
+    } else if (f.kind === 'river' || f.kind === 'line') {
+      el('path', { class: 'halo', d: f.d }, hl);
+      el('path', { class: 'edge', d: f.d }, hl);
+    } else if (f.kind === 'peak') {
+      const [px, py] = f.dot;
+      el('path', { class: 'peak', d: `M${px} ${py - 15}L${px + 12} ${py + 7}L${px - 12} ${py + 7}Z` }, hl);
+    }
+    return hl;
+  }
+
+  function drawDot(parent, f) {
+    const g = el('g', featAttrs(f, 'dot'), parent);
+    el('circle', { class: 'ring', cx: f.dot[0], cy: f.dot[1], r: 7 }, g);
+    return g;
+  }
+
+  function drawLabel(parent, f) {
+    const g = el('g', featAttrs(f, 'lbl'), parent);
+    const [dx, dy] = f.dot, [lx, ly] = f.label;
+    if (Math.hypot(lx - dx, ly - dy) > 30) el('line', { x1: dx, y1: dy, x2: lx, y2: ly }, g);
+    const lines = splitLabel(f.name);
+    const t = el('text', { x: lx, y: ly - (lines.length - 1) * 13, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, g);
+    lines.forEach((ln, i) => {
+      const ts = el('tspan', { x: lx, dy: i ? 27 : 0 }, t);
+      ts.textContent = ln;
+    });
+    return g;
+  }
+
+  // Shows a feature as solved: highlighted area, label and filled dot
+  function reveal(id) {
+    state.svg.querySelector(`.hl[data-id="${id}"]`).classList.add('is-on');
+    state.svg.querySelector(`.lbl[data-id="${id}"]`).classList.add('is-on');
+    state.dots.get(id).node.classList.add('is-done');
   }
 
   // Split long names over two lines
@@ -181,9 +298,7 @@
   function buildTray(data) {
     const root = $('#tray-groups');
     root.innerHTML = '';
-    const groups = [];
-    for (const f of data.features) if (!groups.includes(f.group)) groups.push(f.group);
-    for (const name of groups) {
+    for (const name of groupsOf(data)) {
       const g = slug(name);
       const sec = document.createElement('section');
       sec.className = 'group'; sec.style.setProperty('--gc', GROUP_COLORS[g]);
@@ -233,7 +348,7 @@
   // Nearest unsolved dot to the pointer (within SNAP_PX screen pixels)
   function nearestDot(clientX, clientY) {
     const svg = state.svg;
-    if (!svg) return null;
+    if (!svg || state.mode !== 'activitat') return null;
     const ctm = svg.getScreenCTM();
     if (!ctm) return null;
     const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
@@ -303,13 +418,11 @@
       d.pill.remove();
       if (group && !group.querySelector('.pill')) group.classList.add('is-empty');
     }, 180);
-    state.svg.querySelector(`.hl[data-id="${id}"]`).classList.add('is-on');
-    state.svg.querySelector(`.lbl[data-id="${id}"]`).classList.add('is-on');
-    state.dots.get(id).node.classList.add('is-done');
+    reveal(id);
     state.drag = null;
     updateStats();
     if (state.solved.size === state.map.features.length) {
-      document.querySelector('.tray').classList.add('is-complete');
+      $('#tray').classList.add('is-complete');
       setTimeout(showDone, 900);
     }
   }
@@ -350,10 +463,8 @@
   // ------------------------------------------------------------------ init
   function init() {
     setupMobileWarning();
-    document.querySelectorAll('.map-btn').forEach((b) =>
-      b.addEventListener('click', () => { location.hash = `#/${b.dataset.map}`; }));
     $('#btn-home').addEventListener('click', () => { location.hash = ''; });
-    $('#btn-reset').addEventListener('click', () => state.map && startGame(state.map));
+    $('#btn-reset').addEventListener('click', () => state.map && state.mode === 'activitat' && startGame(state.map));
     $('#done-close').addEventListener('click', () => { $('#done').hidden = true; });
     $('#done-reset').addEventListener('click', () => { $('#done').hidden = true; startGame(state.map); });
     $('#done-home').addEventListener('click', () => { location.hash = ''; });

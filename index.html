@@ -26,16 +26,24 @@
     <div class="landing__inner">
       <p class="landing__kicker">Geografia · Relleu i aigües</p>
       <h1>Mapes físics</h1>
-      <p class="landing__lead">Arrossega cada accident geogràfic fins al seu punt del mapa mut.</p>
+      <p class="landing__lead">Arrossega cada accident geogràfic fins al seu punt del mapa mut, o consulta el mapa amb tots els accidents situats.</p>
       <div class="landing__buttons">
-        <button type="button" class="map-btn" data-map="europa">
-          <span class="map-btn__title">Europa</span>
-          <span class="map-btn__meta">26 accidents</span>
-        </button>
-        <button type="button" class="map-btn" data-map="asia">
-          <span class="map-btn__title">Àsia</span>
-          <span class="map-btn__meta">24 accidents</span>
-        </button>
+        <div class="map-card">
+          <span class="map-card__title">Europa</span>
+          <span class="map-card__meta">26 accidents</span>
+          <div class="map-card__actions">
+            <a class="btn" href="#/europa">Activitat</a>
+            <a class="btn btn--ghost" href="#/europa/consulta">Mapa de consulta</a>
+          </div>
+        </div>
+        <div class="map-card">
+          <span class="map-card__title">Àsia</span>
+          <span class="map-card__meta">24 accidents</span>
+          <div class="map-card__actions">
+            <a class="btn" href="#/asia">Activitat</a>
+            <a class="btn btn--ghost" href="#/asia/consulta">Mapa de consulta</a>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -45,6 +53,10 @@
     <header class="topbar">
       <button type="button" class="btn btn--ghost" id="btn-home">← Inici</button>
       <h1 class="topbar__title" id="map-title">Europa</h1>
+      <nav class="mode-switch" aria-label="Mode">
+        <a class="mode-switch__opt" id="mode-play" href="#/europa">Activitat</a>
+        <a class="mode-switch__opt" id="mode-ref" href="#/europa/consulta">Consulta</a>
+      </nav>
       <div class="topbar__stats" aria-live="polite">
         <span class="stat"><span class="stat__label">Encerts</span> <strong id="stat-ok">0</strong>/<span id="stat-total">0</span></span>
         <span class="stat stat--err"><span class="stat__label">Errors</span> <strong id="stat-err">0</strong></span>
@@ -56,8 +68,8 @@
       <div class="map-wrap" id="map-wrap">
         <div class="map-loading" id="map-loading">Carregant el mapa…</div>
       </div>
-      <aside class="tray" aria-label="Accidents geogràfics per situar">
-        <p class="tray__help">Arrossega cada nom fins al punt correcte.</p>
+      <aside class="tray" id="tray" aria-label="Accidents geogràfics per situar">
+        <p class="tray__help" id="tray-help">Arrossega cada nom fins al punt correcte.</p>
         <div id="tray-groups"></div>
         <p class="tray__done">Tots els accidents situats ✓</p>
       </aside>
@@ -73,6 +85,7 @@
       <div class="overlay__actions">
         <button type="button" class="btn btn--ghost" id="done-close">Mira el mapa</button>
         <button type="button" class="btn" id="done-reset">Torna a començar</button>
+        <a class="btn btn--ghost" id="done-ref" href="#/europa/consulta">Mapa de consulta</a>
         <button type="button" class="btn" id="done-home">Canvia de mapa</button>
       </div>
     </div>

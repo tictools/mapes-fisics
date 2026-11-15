@@ -52,16 +52,18 @@ h1, h2 { margin: 0; }
 .landing h1 { font-size: clamp(40px, 6vw, 64px); letter-spacing: -.02em; }
 .landing__lead { font-size: 19px; color: var(--muted); margin: 14px 0 40px; }
 .landing__buttons { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
-.map-btn {
-  font: inherit; cursor: pointer; width: 260px; padding: 34px 24px 28px;
+.map-card {
+  width: 280px; padding: 30px 22px 24px;
   border: 2px solid var(--line); border-radius: 20px; background: #fff;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   box-shadow: 0 6px 24px rgba(31, 42, 51, .07);
   transition: transform .15s, box-shadow .15s, border-color .15s;
 }
-.map-btn:hover { transform: translateY(-3px); border-color: var(--c-rius); box-shadow: 0 12px 32px rgba(31, 42, 51, .12); }
-.map-btn__title { font-size: 34px; font-weight: 800; letter-spacing: -.01em; }
-.map-btn__meta { font-size: 15px; color: var(--muted); }
+.map-card:hover { transform: translateY(-3px); border-color: var(--c-rius); box-shadow: 0 12px 32px rgba(31, 42, 51, .12); }
+.map-card__title { font-size: 34px; font-weight: 800; letter-spacing: -.01em; }
+.map-card__meta { font-size: 15px; color: var(--muted); }
+.map-card__actions { display: flex; flex-direction: column; align-self: stretch; gap: 8px; margin-top: 14px; }
+a.btn { text-decoration: none; text-align: center; }
 
 /* ============ Activity ============ */
 .game { height: 100%; display: flex; flex-direction: column; }
@@ -73,6 +75,16 @@ h1, h2 { margin: 0; }
 .topbar__stats { display: flex; gap: 18px; font-size: 16px; }
 .stat__label { color: var(--muted); }
 .stat--err strong { color: var(--c-serralades); }
+
+/* Mode switch (Activitat | Consulta) */
+.mode-switch { display: flex; padding: 3px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+.mode-switch__opt {
+  font-size: 14px; font-weight: 650; color: var(--muted); text-decoration: none;
+  padding: 6px 14px; border-radius: 999px; transition: background .15s, color .15s;
+}
+.mode-switch__opt:hover { color: var(--ink); }
+.mode-switch__opt[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(31, 42, 51, .15); }
+.game.is-consulta .topbar__stats, .game.is-consulta #btn-reset { display: none; }
 
 .game__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 330px; }
 .map-wrap { position: relative; min-width: 0; min-height: 0; padding: 12px; display: flex; }
@@ -98,6 +110,18 @@ h1, h2 { margin: 0; }
 .tray__done { display: none; margin-top: 18px; padding: 14px; border-radius: var(--radius); background: #EAF6EC; color: var(--c-illes); font-weight: 700; text-align: center; }
 .tray.is-complete .tray__done { display: block; }
 .tray.is-complete .tray__help { display: none; }
+
+/* Legend (reference mode) */
+.group__toggle {
+  font-family: inherit; background: none; border: 0; padding: 4px 0; cursor: pointer; width: 100%; text-align: left;
+}
+.group__toggle:hover { color: var(--ink); }
+.group__count { margin-left: auto; font-weight: 700; letter-spacing: 0; }
+.group--legend.is-off .group__swatch { opacity: .25; }
+.group--legend.is-off .group__title { text-decoration: line-through; }
+.group--legend.is-off .group__pills { display: none; }
+.pill--static { cursor: pointer; touch-action: auto; }
+.pill--static.is-focus { background: var(--gc); color: #fff; }
 
 .pill {
   font: inherit; font-size: 14.5px; font-weight: 650; line-height: 1.2;
@@ -161,6 +185,11 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 }
 .lbl line { stroke: var(--gc); stroke-width: 1.6; }
 
+/* Reference mode: everything shown at once, groups can be hidden, one feature can be focused */
+svg.is-static .hl, svg.is-static .lbl, svg.is-static .dot .ring { transition: opacity .2s; }
+svg.is-static .is-hidden { display: none; }
+svg.has-focus .hl:not(.is-focus), svg.has-focus .lbl:not(.is-focus), svg.has-focus .dot:not(.is-focus) { opacity: .15; }
+
 /* ============ Overlays ============ */
 .overlay {
   position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px;
@@ -186,4 +215,5 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
   .topbar { gap: 10px; padding: 8px 12px; }
   .topbar__title { font-size: 19px; }
   .stat__label { display: none; }
+  .mode-switch__opt { padding: 6px 10px; }
 }
