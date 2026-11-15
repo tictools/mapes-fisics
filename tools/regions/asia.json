@@ -11,7 +11,7 @@
     {"id": "ganges", "name": "Ganges", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Ganges"}], "dot": [83.0, 25.4], "label": [85.0, 23.2]},
     {"id": "mekong", "name": "Mekong", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Mekong"}], "dot": [105.9, 14.5], "label": [110.0, 13.2]},
     {"id": "himalaia", "name": "Himàlaia", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "HIMALAYAS"}], "dot": [82.0, 30.0], "label": [88.0, 32.6]},
-    {"id": "everest", "name": "Everest (8.848 m)", "group": "Serralades", "kind": "peak", "manual": true, "dot": [86.925, 27.988], "label": [82.0, 25.2]},
+    {"id": "everest", "name": "Everest (8.848 m)", "group": "Serralades", "kind": "peak", "manual": true, "dot": [86.925, 27.988], "label": [80.5, 27.6]},
     {"id": "roig", "name": "Mar Roig", "group": "Mars", "kind": "area", "source": [{"layer": "marine", "name": "Red Sea"}], "dot": [38.8, 19.6], "label": [34.0, 26.0]},
     {"id": "baikal", "name": "Llac Baikal", "group": "Llacs", "kind": "area", "source": [{"layer": "lakes", "name": "Lake Baikal"}], "dot": [108.2, 53.4], "label": [114.5, 57.3]},
     {"id": "gobi", "name": "Desert del Gobi", "group": "Deserts", "kind": "area", "source": [{"layer": "regions", "name": "GOBI DESERT"}], "dot": [105.0, 43.0], "label": [105.0, 45.6]},
