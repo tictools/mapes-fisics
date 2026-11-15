@@ -1,83 +1,180 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ca">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mapes físics · Europa i Àsia</title>
-  <meta name="description" content="Activitat interactiva: situa els accidents geogràfics d'Europa i Àsia en un mapa mut.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
-  <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
-
-  <!-- Mobile warning -->
-  <div id="mobile-warning" class="overlay" hidden>
-    <div class="overlay__card">
-      <div class="overlay__icon" aria-hidden="true">💻</div>
-      <h2>Millor en un ordinador o una tauleta</h2>
-      <p>Aquesta activitat consisteix a arrossegar noms sobre un mapa, i en una pantalla de mòbil els punts queden massa petits i junts per fer-ho bé.</p>
-      <p>Obre-la des d'un <strong>ordinador</strong> o una <strong>tauleta</strong>.</p>
-      <button type="button" class="btn btn--ghost" id="mobile-continue">Continua igualment</button>
-    </div>
-  </div>
-
-  <!-- Landing page -->
-  <main id="landing" class="landing">
-    <div class="landing__inner">
-      <p class="landing__kicker">Geografia · Relleu i aigües</p>
-      <h1>Mapes físics</h1>
-      <p class="landing__lead">Arrossega cada accident geogràfic fins al seu punt del mapa mut.</p>
-      <div class="landing__buttons">
-        <button type="button" class="map-btn" data-map="europa">
-          <span class="map-btn__title">Europa</span>
-          <span class="map-btn__meta">26 accidents</span>
-        </button>
-        <button type="button" class="map-btn" data-map="asia">
-          <span class="map-btn__title">Àsia</span>
-          <span class="map-btn__meta">24 accidents</span>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mapes físics · Europa i Àsia</title>
+    <meta
+      name="description"
+      content="Activitat interactiva: situa els accidents geogràfics d'Europa i Àsia en un mapa mut."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- Mobile warning -->
+    <div id="mobile-warning" class="overlay" hidden>
+      <div class="overlay__card">
+        <div class="overlay__icon" aria-hidden="true">💻</div>
+        <h2>Millor en un ordinador o una tauleta</h2>
+        <p>
+          Aquesta activitat consisteix a arrossegar noms sobre un mapa, i en una
+          pantalla de mòbil els punts queden massa petits i junts per fer-ho bé.
+        </p>
+        <p>
+          Obre-la des d'un <strong>ordinador</strong> o una
+          <strong>tauleta</strong>.
+        </p>
+        <button type="button" class="btn btn--ghost" id="mobile-continue">
+          Continua igualment
         </button>
       </div>
     </div>
-  </main>
 
-  <!-- Activity -->
-  <section id="game" class="game" hidden>
-    <header class="topbar">
-      <button type="button" class="btn btn--ghost" id="btn-home">← Inici</button>
-      <h1 class="topbar__title" id="map-title">Europa</h1>
-      <div class="topbar__stats" aria-live="polite">
-        <span class="stat"><span class="stat__label">Encerts</span> <strong id="stat-ok">0</strong>/<span id="stat-total">0</span></span>
-        <span class="stat stat--err"><span class="stat__label">Errors</span> <strong id="stat-err">0</strong></span>
-      </div>
-      <button type="button" class="btn" id="btn-reset">Reinicia</button>
-    </header>
+    <!-- Icons, reused with <use href="#icon-..."> -->
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="icon-consulta" viewBox="0 0 24 24">
+        <path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z" />
+        <path d="M9 4v13.5M15 6.5V20" />
+      </symbol>
+      <symbol id="icon-activitat" viewBox="0 0 24 24">
+        <path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z" />
+        <circle cx="12" cy="10.5" r="2.3" />
+      </symbol>
+      <symbol id="icon-eye" viewBox="0 0 24 24">
+        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="icon-eye-off" viewBox="0 0 24 24">
+        <path d="M9.9 5.7A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-2.6 3.4M6.6 6.7C3.7 8.5 2 12 2 12s3.6 6.5 10 6.5a9.6 9.6 0 0 0 5.4-1.6" />
+        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+      </symbol>
+      <symbol id="icon-reset" viewBox="0 0 24 24">
+        <path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.6" />
+        <path d="M4 3.5v5.1h5.1" />
+      </symbol>
+    </svg>
 
-    <div class="game__body">
-      <div class="map-wrap" id="map-wrap">
-        <div class="map-loading" id="map-loading">Carregant el mapa…</div>
+    <!-- Landing page -->
+    <main id="landing" class="landing">
+      <div class="landing__inner">
+        <p class="landing__kicker">Geografia · Relleu i aigües</p>
+        <h1>Mapes físics</h1>
+        <p class="landing__lead">
+          <span class="landing__line">
+            <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+            <span><strong>Consulta el mapa</strong> amb tots els accidents situats.</span>
+          </span>
+          <span class="landing__line">
+            <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+            <span><strong>Arrossega</strong> cada accident geogràfic fins al seu punt del mapa mut.</span>
+          </span>
+        </p>
+        <div class="landing__buttons">
+          <div class="map-card">
+            <span class="map-card__title">Europa</span>
+            <span class="map-card__meta">26 accidents</span>
+            <div class="map-card__actions">
+              <a class="btn btn--ghost btn--icon" href="#/europa/consulta" aria-label="Mapa de consulta d'Europa" title="Mapa de consulta">
+                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+              </a>
+              <a class="btn btn--icon" href="#/europa" aria-label="Activitat d'Europa" title="Activitat">
+                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+              </a>
+            </div>
+          </div>
+          <div class="map-card">
+            <span class="map-card__title">Àsia</span>
+            <span class="map-card__meta">24 accidents</span>
+            <div class="map-card__actions">
+              <a class="btn btn--ghost btn--icon" href="#/asia/consulta" aria-label="Mapa de consulta d'Àsia" title="Mapa de consulta">
+                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+              </a>
+              <a class="btn btn--icon" href="#/asia" aria-label="Activitat d'Àsia" title="Activitat">
+                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
-      <aside class="tray" aria-label="Accidents geogràfics per situar">
-        <p class="tray__help">Arrossega cada nom fins al punt correcte.</p>
-        <div id="tray-groups"></div>
-        <p class="tray__done">Tots els accidents situats ✓</p>
-      </aside>
+    </main>
+
+    <!-- Activity -->
+    <section id="game" class="game" hidden>
+      <header class="topbar">
+        <button type="button" class="btn btn--ghost" id="btn-home">
+          ← Inici
+        </button>
+        <h1 class="topbar__title" id="map-title">Europa</h1>
+        <nav class="mode-switch" aria-label="Mode">
+          <a class="mode-switch__opt" id="mode-play" href="#/europa"
+            >Activitat</a
+          >
+          <a class="mode-switch__opt" id="mode-ref" href="#/europa/consulta"
+            >Consulta</a
+          >
+        </nav>
+        <div class="topbar__stats" aria-live="polite">
+          <span class="stat"
+            ><span class="stat__label">Encerts</span>
+            <strong id="stat-ok">0</strong>/<span id="stat-total">0</span></span
+          >
+          <span class="stat stat--err"
+            ><span class="stat__label">Errors</span>
+            <strong id="stat-err">0</strong></span
+          >
+        </div>
+        <button type="button" class="btn" id="btn-reset">Reinicia</button>
+      </header>
+
+      <div class="game__body">
+        <div class="map-wrap" id="map-wrap">
+          <div class="map-loading" id="map-loading">Carregant el mapa…</div>
+        </div>
+        <aside
+          class="tray"
+          id="tray"
+          aria-label="Accidents geogràfics per situar"
+        >
+          <p class="tray__help" id="tray-help">
+            Arrossega cada nom fins al punt correcte.
+          </p>
+          <button type="button" class="btn btn--ghost tray__reset" id="btn-show-all">
+            <svg class="icon" aria-hidden="true"><use href="#icon-reset" /></svg>
+            Restableix
+          </button>
+          <div id="tray-groups"></div>
+          <p class="tray__done">Tots els accidents situats ✓</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Completion -->
+    <div id="done" class="overlay" hidden>
+      <div class="overlay__card">
+        <div class="overlay__icon" aria-hidden="true">🎉</div>
+        <h2>Molt bé!</h2>
+        <p id="done-text"></p>
+        <div class="overlay__actions">
+          <button type="button" class="btn btn--ghost" id="done-close">
+            Mira el mapa
+          </button>
+          <button type="button" class="btn" id="done-reset">
+            Torna a començar
+          </button>
+          <a class="btn btn--ghost" id="done-ref" href="#/europa/consulta"
+            >Mapa de consulta</a
+          >
+          <button type="button" class="btn" id="done-home">
+            Canvia de mapa
+          </button>
+        </div>
+      </div>
     </div>
-  </section>
 
-  <!-- Completion -->
-  <div id="done" class="overlay" hidden>
-    <div class="overlay__card">
-      <div class="overlay__icon" aria-hidden="true">🎉</div>
-      <h2>Molt bé!</h2>
-      <p id="done-text"></p>
-      <div class="overlay__actions">
-        <button type="button" class="btn btn--ghost" id="done-close">Mira el mapa</button>
-        <button type="button" class="btn" id="done-reset">Torna a començar</button>
-        <button type="button" class="btn" id="done-home">Canvia de mapa</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="js/app.js"></script>
-</body>
+    <script src="js/app.js"></script>
+  </body>
 </html>
