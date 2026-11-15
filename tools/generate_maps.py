@@ -1,35 +1,68 @@
 #!/usr/bin/env python3
 """
-Generates the blank map data (data/europa.js and data/asia.js) from Natural Earth.
+Generates the map data (data/<region>.js) from the region configs in tools/regions/ and Natural Earth.
 
 Usage:
-    NE_DIR=/path/to/natural-earth-vector/geojson python3 tools/generate_maps.py
+    python3 tools/generate_maps.py              # every region in tools/regions/
+    python3 tools/generate_maps.py europa asia  # only these regions
+    python3 tools/generate_maps.py --check      # validate the configs and sources, write nothing
 
+Natural Earth is read from tools/natural-earth-vector/geojson (override with NE_DIR=...).
 Only needs re-running to change features, base colours or the map framing.
 The site doesn't need this script to work (the data files are already generated).
 Requirements: Python 3 + numpy.
+
+Region config (tools/regions/<id>.json):
+    id, title          map id (route #/<id>, file data/<id>.js) and title shown in the page
+    projection         {"type": "laea", "lon0": .., "lat0": ..}  Lambert azimuthal equal-area centre
+    extent             [[lon, lat], ...]  points that must fit in the map; the bounding box sets the framing
+    graticule          optional {"meridian_lats": [a, b], "parallels": [a, b], "parallel_lons": [a, b]}
+    features           list, in tray order; each one:
+        id, name, group    identifier (ascii), name shown in the page, group (see GROUPS)
+        kind               area | river | line | peak
+        source             area/river: [{"layer": .., "name": .., "largest": bool}, ...]  (see LAYERS)
+        coords             line: [[lon, lat], ...]  (drawn by hand, "manual": true)
+        dot                [lon, lat]  answer point (rivers snap it to the river)
+        label              optional [lon, lat]  label position (default: just above the dot)
+        manual             true when the geometry is not taken from Natural Earth
 """
+import glob
 import json
 import os
+import re
+import sys
 
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'data')
+REGIONS = os.path.join(HERE, 'regions')
 NE = os.environ.get('NE_DIR', os.path.join(HERE, 'natural-earth-vector', 'geojson'))
+
+# Natural Earth layers a feature can come from: config name -> (file, property holding the name)
+LAYERS = {
+    'regions': ('ne_10m_geography_regions_polys', 'NAME'),
+    'marine': ('ne_50m_geography_marine_polys', 'name'),
+    'lakes': ('ne_50m_lakes', 'name'),
+    'countries': ('ne_50m_admin_0_countries', 'NAME'),
+    'rivers': ('ne_10m_rivers_lake_centerlines', 'name'),
+}
+# Groups known by the page (js/app.js GROUP_COLORS, css/styles.css) and the kinds each one accepts
+GROUPS = {
+    'Rius': {'river'}, 'Serralades': {'area', 'peak'}, 'Mars': {'area'}, 'Penínsules': {'area'},
+    'Illes': {'area'}, 'Planes': {'area'}, 'Llacs': {'area'}, 'Deserts': {'area'}, 'Estrets': {'line'},
+    'Golfs': {'area'}, 'Arxipèlegs': {'area'},
+}
+
+_cache = {}
 
 
 def load(n):
-    with open(os.path.join(NE, n + '.geojson'), encoding='utf-8') as fh:
-        return json.load(fh)['features']
+    if n not in _cache:
+        with open(os.path.join(NE, n + '.geojson'), encoding='utf-8') as fh:
+            _cache[n] = json.load(fh)['features']
+    return _cache[n]
 
-
-LAND = load('ne_50m_land')
-LAKES = load('ne_50m_lakes')
-RIVERS = load('ne_10m_rivers_lake_centerlines')
-REG = load('ne_10m_geography_regions_polys')
-MAR = load('ne_50m_geography_marine_polys')
-CTRY = load('ne_50m_admin_0_countries')
 
 W = 1600  # viewBox width
 
@@ -155,30 +188,25 @@ def ring_area(r):
     return abs(np.sum(a[:-1, 0] * a[1:, 1] - a[1:, 0] * a[:-1, 1])) / 2
 
 
-def feat(lst, key, name):
-    out = [p for f in lst if f['properties'].get(key) == name for p in polys(f['geometry'])]
-    assert out, name
+def source_polys(refs):
+    """Polygons of an area feature, in the order of its source refs."""
+    out = []
+    for ref in refs:
+        file, key = LAYERS[ref['layer']]
+        found = [p for f in load(file) if f['properties'].get(key) == ref['name'] for p in polys(f['geometry'])]
+        if not found:
+            raise SystemExit(f"Not found in Natural Earth: {ref['layer']} {ref['name']!r}")
+        out += [max(found, key=lambda p: ring_area(p[0]))] if ref.get('largest') else found
     return out
 
 
-def region(n):
-    return feat(REG, 'NAME', n)
-
-
-def marine(n):
-    return feat(MAR, 'name', n)
-
-
-def lake(n):
-    return feat(LAKES, 'name', n)
-
-
-def country_main(n):
-    return [max(feat(CTRY, 'NAME', n), key=lambda p: ring_area(p[0]))]
-
-
-def river_lines(names):
-    return [ln for f in RIVERS if f['properties'].get('name') in names for ln in lines(f['geometry'])]
+def river_lines(refs):
+    file, key = LAYERS['rivers']
+    names = {r['name'] for r in refs}
+    found = [ln for f in load(file) if f['properties'].get(key) in names for ln in lines(f['geometry'])]
+    if not found:
+        raise SystemExit(f'River not found in Natural Earth: {sorted(names)}')
+    return found
 
 
 def snap_to_lines(frame, lls, ll):
@@ -196,7 +224,10 @@ def snap_to_lines(frame, lls, ll):
 
 
 # ---------------------------------------------------------------- base layer (blank map)
-def base_layers(frame):
+def base_layers(frame, grat_cfg=None):
+    g = {'meridian_lats': [-30, 85], 'parallels': [-20, 80], 'parallel_lons': [-60, 250], **(grat_cfg or {})}
+    LAND, LAKES, REG = load('ne_50m_land'), load('ne_50m_lakes'), load(LAYERS['regions'][0])
+    RIVERS = load(LAYERS['rivers'][0])
     land = ''.join(poly_d(frame, polys(f['geometry']), 0.6, 2) for f in LAND)
     plat = ''.join(poly_d(frame, polys(f['geometry']), 1.0, 20)
                    for f in REG if f['properties']['FEATURECLA'] == 'Plateau')
@@ -207,12 +238,12 @@ def base_layers(frame):
                     for f in RIVERS if f['properties'].get('scalerank', 9) <= 4)
     grat = []
     for lon in range(-180, 181, 10):
-        la = np.linspace(-30, 85, 120)
+        la = np.linspace(*g['meridian_lats'], 120)
         x, y = frame.xy(np.full_like(la, lon), la)
         a = np.column_stack([x, y])
         grat.append(fmt(simplify(a, 0.5)))
-    for lat in range(-20, 90, 10):
-        lo = np.linspace(-60, 250, 400)
+    for lat in range(g['parallels'][0], g['parallels'][1] + 1, 10):
+        lo = np.linspace(*g['parallel_lons'], 400)
         x, y = frame.xy(lo, np.full_like(lo, lat))
         a = np.column_stack([x, y])
         a = a[(a[:, 0] > -300) & (a[:, 0] < W + 300)]
@@ -223,114 +254,92 @@ def base_layers(frame):
 
 
 # ---------------------------------------------------------------- features
-def build(frame, items):
+def build(frame, features):
     feats = []
-    for it in items:
-        fid, name, group, kind, src, dot, lab = it
-        f = {'id': fid, 'name': name, 'group': group, 'kind': kind}
+    for c in features:
+        f = {'id': c['id'], 'name': c['name'], 'group': c['group'], 'kind': c['kind']}
+        kind = c['kind']
         if kind == 'area':
-            f['d'] = poly_d(frame, src, 0.5)
-            f['dot'] = frame.pt(dot)
+            f['d'] = poly_d(frame, source_polys(c['source']), 0.5)
+            f['dot'] = frame.pt(c['dot'])
         elif kind == 'river':
-            lls = river_lines(src)
+            lls = river_lines(c['source'])
             f['d'] = line_d(frame, lls, 0.4)
-            f['dot'] = snap_to_lines(frame, lls, dot)
+            f['dot'] = snap_to_lines(frame, lls, c['dot'])
         elif kind == 'line':  # strait
-            a = np.array([frame.xy(*p) for p in src])
+            a = np.array([frame.xy(*p) for p in c['coords']])
             f['d'] = fmt(a)
-            f['dot'] = frame.pt(dot)
+            f['dot'] = frame.pt(c['dot'])
         elif kind == 'peak':
-            f['dot'] = frame.pt(dot)
+            f['dot'] = frame.pt(c['dot'])
+        lab = c.get('label')
         f['label'] = frame.pt(lab) if lab else [f['dot'][0], round(f['dot'][1] - 22, 1)]
         feats.append(f)
     return feats
 
 
-def europa():
-    frame = Frame(18, 52, [(-26, 37), (63, 37), (-12, 72), (60, 72), (18, 32), (18, 72.5), (-26, 50), (66, 50)])
-    med = sum((marine(n) for n in ['Mediterranean Sea', 'Tyrrhenian Sea', 'Adriatic Sea', 'Ionian Sea',
-                                   'Aegean Sea', 'Balearic Sea', 'Golfe du Lion']), [])
-    baltic = marine('Baltic Sea') + marine('Gulf of Bothnia') + marine('Gulf of Finland')
-    if any(f['properties'].get('name') == 'Caspian Sea' for f in LAKES):
-        caspi = lake('Caspian Sea')
-    else:
-        caspi = marine('Caspian Sea')
-    items = [
-        ('volga', 'Volga', 'Rius', 'river', {'Volga'}, (49.1, 55.8), (52.5, 55.3)),
-        ('danubi', 'Danubi', 'Rius', 'river', {'Danube'}, (19.0, 47.3), (17.0, 45.4)),
-        ('dnieper', 'Dnièper', 'Rius', 'river', {'Dnipro'}, (32.0, 49.0), (35.5, 50.6)),
-        ('rin', 'Rin', 'Rius', 'river', {'Rhine'}, (7.4, 50.4), (4.4, 51.2)),
-        ('caucas', 'Caucas', 'Serralades', 'area', region('CAUCASUS MTS.'), (44.0, 42.7), (45.0, 40.4)),
-        ('pirineus', 'Pirineus', 'Serralades', 'area', region('PYRENEES'), (0.5, 42.7), (1.5, 44.4)),
-        ('alps', 'Alps', 'Serralades', 'area', region('ALPS'), (10.5, 46.7), (12.0, 48.5)),
-        ('urals', 'Urals', 'Serralades', 'area', region('URAL MOUNTAINS'), (59.3, 61.0), (54.5, 61.6)),
-        ('balcans', 'Balcans', 'Serralades', 'area', region('Balkan Mts.'), (25.0, 42.75), (27.5, 41.4)),
-        ('carpats', 'Càrpats', 'Serralades', 'area', region('CARPATHIAN MOUNTAINS') + region('Transylvanian Alps'),
-         (25.0, 47.5), (28.0, 48.6)),
-        ('mediterrani', 'Mar Mediterrani', 'Mars', 'area', med, (18.5, 35.3), (18.5, 33.9)),
-        ('negre', 'Mar Negre', 'Mars', 'area', marine('Black Sea'), (34.0, 43.3), (34.5, 44.6)),
-        ('caspi', 'Mar Caspi', 'Mars', 'area', caspi, (51.0, 42.3), (53.5, 44.6)),
-        ('baltic', 'Mar Bàltic', 'Mars', 'area', baltic, (19.5, 55.8), (16.0, 57.8)),
-        ('nord', 'Mar del Nord', 'Mars', 'area', marine('North Sea'), (3.0, 56.0), (2.5, 57.6)),
-        ('iberica', 'Península Ibèrica', 'Penínsules', 'area', country_main('Spain') + country_main('Portugal'),
-         (-4.0, 40.0), (-4.5, 38.6)),
-        ('italica', 'Península Itàlica', 'Penínsules', 'area', country_main('Italy'), (15.3, 40.9), (17.6, 42.5)),
-        ('balcanica', 'Península Balcànica', 'Penínsules', 'area', region('BALKAN PEN.'), (21.6, 41.0),
-         (21.5, 39.4)),
-        ('escandinava', 'Península Escandinava', 'Penínsules', 'area', region('SCANDINAVIA'), (15.0, 63.5),
-         (16.0, 65.2)),
-        ('balears', 'Illes Balears', 'Illes', 'area', region('Balearic Islands'), (2.9, 39.6), (4.2, 37.9)),
-        ('britaniques', 'Illes Britàniques', 'Illes', 'area', region('BRITISH ISLES'), (-1.8, 53.0),
-         (-9.5, 57.6)),
-        ('islandia', 'Islàndia', 'Illes', 'area', region('ICELAND'), (-18.5, 64.9), (-18.5, 63.3)),
-        ('corsega', 'Còrsega', 'Illes', 'area', region('Corse'), (9.1, 42.15), (6.8, 43.1)),
-        ('sicilia', 'Sicília', 'Illes', 'area', region('Sicilia'), (14.2, 37.5), (12.6, 36.4)),
-        ('sardenya', 'Sardenya', 'Illes', 'area', region('Sardegna'), (9.0, 40.0), (5.6, 41.0)),
-        ('planura', 'Gran Planura centreeuropea', 'Planes', 'area', region('NORTHERN EUROPEAN PLAIN'),
-         (20.0, 52.5), (21.0, 54.0)),
-    ]
-    return frame, items
+# ---------------------------------------------------------------- region configs
+def validate(cfg):
+    """Returns a list of problems in a region config (empty if it is valid)."""
+    errs = []
+    for k in ('id', 'title', 'projection', 'extent', 'features'):
+        if k not in cfg:
+            errs.append(f'missing key {k!r}')
+    if errs:
+        return errs
+    if cfg['projection'].get('type') != 'laea':
+        errs.append('projection.type must be "laea"')
+    ids, names = set(), set()
+    for i, c in enumerate(cfg['features']):
+        where = f"feature {i} ({c.get('id', '?')})"
+        for k in ('id', 'name', 'group', 'kind', 'dot'):
+            if k not in c:
+                errs.append(f'{where}: missing {k!r}')
+        if c.get('id') in ids:
+            errs.append(f'{where}: duplicate id')
+        if c.get('name') in names:
+            errs.append(f'{where}: duplicate name')
+        ids.add(c.get('id'))
+        names.add(c.get('name'))
+        if not re.fullmatch(r'[a-z0-9_]+', str(c.get('id', ''))):
+            errs.append(f'{where}: id must be lowercase ascii letters, digits or _')
+        group, kind = c.get('group'), c.get('kind')
+        if group not in GROUPS:
+            errs.append(f'{where}: unknown group {group!r} (known: {", ".join(GROUPS)})')
+        elif kind not in GROUPS[group]:
+            errs.append(f'{where}: kind {kind!r} not allowed for {group} (allowed: {sorted(GROUPS[group])})')
+        if kind in ('area', 'river'):
+            refs = c.get('source') or []
+            if not refs:
+                errs.append(f'{where}: {kind} needs a non-empty source')
+            for r in refs:
+                if r.get('layer') not in LAYERS:
+                    errs.append(f"{where}: unknown layer {r.get('layer')!r} (known: {', '.join(LAYERS)})")
+                elif (kind == 'river') != (r['layer'] == 'rivers'):
+                    errs.append(f"{where}: {kind} cannot use layer {r['layer']!r}")
+        if kind == 'line' and len(c.get('coords') or []) < 2:
+            errs.append(f'{where}: line needs at least two coords')
+        if kind in ('line', 'peak') and not c.get('manual'):
+            errs.append(f'{where}: {kind} geometry is drawn by hand; mark it "manual": true')
+    return errs
 
 
-def asia():
-    frame = Frame(100, 40, [(28, 32), (-165, 66), (100, 79), (100, -11), (30, 12), (150, -8), (60, 70), (-172, 55)])
-    items = [
-        ('tigris', 'Tigris', 'Rius', 'river', {'Tigris'}, (44.4, 33.6), (49.0, 35.8)),
-        ('eufrates', 'Èufrates', 'Rius', 'river', {'Euphrates'}, (40.5, 34.6), (36.0, 31.8)),
-        ('iangtse', 'Iangtsé', 'Rius', 'river', {'Yangtze', 'Chang Jiang'}, (112.0, 30.3), (113.5, 26.8)),
-        ('indus', 'Indus', 'Rius', 'river', {'Indus'}, (71.0, 29.0), (66.0, 30.2)),
-        ('ganges', 'Ganges', 'Rius', 'river', {'Ganges'}, (83.0, 25.4), (85.0, 23.2)),
-        ('mekong', 'Mekong', 'Rius', 'river', {'Mekong'}, (105.9, 14.5), (110.0, 13.2)),
-        ('himalaia', 'Himàlaia', 'Serralades', 'area', region('HIMALAYAS'), (82.0, 30.0), (88.0, 32.6)),
-        ('everest', 'Everest (8.848 m)', 'Serralades', 'peak', None, (86.925, 27.988), (82.0, 25.2)),
-        ('roig', 'Mar Roig', 'Mars', 'area', marine('Red Sea'), (38.8, 19.6), (34.0, 26.0)),
-        ('baikal', 'Llac Baikal', 'Llacs', 'area', lake('Lake Baikal'), (108.2, 53.4), (114.5, 57.3)),
-        ('gobi', 'Desert del Gobi', 'Deserts', 'area', region('GOBI DESERT'), (105.0, 43.0), (105.0, 45.6)),
-        ('arabia_desert', "Desert d'Aràbia", 'Deserts', 'area', region('RUB’ AL KHALI'), (50.0, 20.0),
-         (51.5, 17.0)),
-        ('arabiga', 'Península Aràbiga', 'Penínsules', 'area', region('ARABIAN PENINSULA'), (44.0, 25.0),
-         (41.5, 28.2)),
-        ('india', "Península de l'Índia (Indostan)", 'Penínsules', 'area', region('INDIA'), (77.5, 17.5),
-         (73.5, 13.0)),
-        ('indoxina', "Península d'Indoxina", 'Penínsules', 'area', region('INDOCHINA PENINSULA'), (101.0, 17.0),
-         (99.0, 20.2)),
-        ('corea', 'Península de Corea', 'Penínsules', 'area', region('KOREA'), (127.6, 37.3), (133.5, 41.0)),
-        ('srilanka', 'Sri Lanka', 'Illes', 'area', region('SRI LANKA'), (80.7, 7.8), (85.0, 5.6)),
-        ('sumatra', 'Sumatra', 'Illes', 'area', region('SUMATRA'), (101.0, -0.5), (96.0, -3.8)),
-        ('borneo', 'Borneo', 'Illes', 'area', region('BORNEO'), (114.0, 1.0), (114.0, 4.2)),
-        ('bering', 'Estret de Bering', 'Estrets', 'line', [(-169.7, 66.08), (-168.1, 65.6)], (-168.9, 65.85),
-         (-176.0, 62.8)),
-        ('bengala', 'Golf de Bengala', 'Golfs', 'area', marine('Bay of Bengal'), (89.0, 15.5), (89.0, 13.4)),
-        ('persic', 'Golf Pèrsic', 'Golfs', 'area', marine('Persian Gulf'), (51.5, 27.2), (57.5, 30.6)),
-        ('filipines', 'Les Filipines', 'Arxipèlegs', 'area', region('PHILIPPINES'), (122.5, 12.5), (129.5, 13.8)),
-        ('japo', 'Japó', 'Arxipèlegs', 'area', region('JAPAN'), (139.0, 36.5), (145.0, 40.0)),
-    ]
-    return frame, items
+def region_paths(ids):
+    if ids:
+        return [os.path.join(REGIONS, i + '.json') for i in ids]
+    return sorted(p for p in glob.glob(os.path.join(REGIONS, '*.json')) if os.path.basename(p) != 'names.json')
 
 
-def write(key, title, frame, items):
-    data = {'id': key, 'title': title, 'viewBox': [0, 0, W, frame.H],
-            'base': base_layers(frame), 'features': build(frame, items)}
+def frame_of(cfg):
+    pr = cfg['projection']
+    return Frame(pr['lon0'], pr['lat0'], cfg['extent'])
+
+
+def write(cfg):
+    frame = frame_of(cfg)
+    key = cfg['id']
+    data = {'id': key, 'title': cfg['title'], 'viewBox': [0, 0, W, frame.H],
+            'base': base_layers(frame, cfg.get('graticule')), 'features': build(frame, cfg['features'])}
     os.makedirs(OUT, exist_ok=True)
     # Saved as a script (not JSON) so the page also works when opening index.html without a server.
     p = os.path.join(OUT, key + '.js')
@@ -340,9 +349,34 @@ def write(key, title, frame, items):
         fh.write(f'window.MAP_DATA[{json.dumps(key)}] = ')
         json.dump(data, fh, ensure_ascii=False, separators=(',', ':'))
         fh.write(';\n')
-    print(p, round(os.path.getsize(p) / 1024), 'KB', len(items), 'accidents')
+    print(os.path.relpath(p), round(os.path.getsize(p) / 1024), 'KB', len(cfg['features']), 'accidents')
+
+
+def main(argv):
+    check = '--check' in argv
+    ids = [a for a in argv if not a.startswith('--')]
+    failed = False
+    for path in region_paths(ids):
+        with open(path, encoding='utf-8') as fh:
+            cfg = json.load(fh)
+        errs = validate(cfg)
+        if cfg.get('id') != os.path.splitext(os.path.basename(path))[0]:
+            errs.append('id must match the file name')
+        if errs:
+            failed = True
+            print(f'{os.path.relpath(path)}:', *errs, sep='\n  - ')
+            continue
+        if check:
+            for c in cfg['features']:  # every source must exist in Natural Earth
+                if c['kind'] == 'area':
+                    source_polys(c['source'])
+                elif c['kind'] == 'river':
+                    river_lines(c['source'])
+            print(f"{os.path.relpath(path)}: OK ({len(cfg['features'])} accidents)")
+        else:
+            write(cfg)
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':
-    write('europa', 'Europa', *europa())
-    write('asia', 'Àsia', *asia())
+    sys.exit(main(sys.argv[1:]))

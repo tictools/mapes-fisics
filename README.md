@@ -17,7 +17,8 @@ css/styles.css      Styles and group colours (CSS variables at the top)
 js/app.js           Logic: navigation, SVG map (shared by both modes), drag and drop, legend
 data/europa.js      Blank map + features of Europe (generated)
 data/asia.js        Blank map + features of Asia (generated)
-tools/generate_maps.py   Script that generates data/*.js from Natural Earth
+tools/regions/*.json     Config of each map: features, framing and projection
+tools/generate_maps.py   Script that generates data/<region>.js from its config and Natural Earth
 ```
 
 Routes: `#/europa` and `#/asia` open the activity; `#/europa/consulta` and `#/asia/consulta` open the reference map.
@@ -34,7 +35,7 @@ npx serve .          # or: python3 -m http.server 8000
 
 ## Changing features or map framing
 
-The features of each map (name, group, point and label position) are defined in `tools/generate_maps.py`, in the `europa()` and `asia()` functions. To regenerate the data:
+Each map is defined in `tools/regions/<region>.json`: its title, projection, framing (`extent`) and features (name, group, Natural Earth source, answer point and label position). The schema is documented at the top of `tools/generate_maps.py`, and the generated data format at the top of `js/app.js`. Never edit `data/*.js` by hand. To regenerate the data:
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/nvkelso/natural-earth-vector tools/natural-earth-vector
@@ -42,7 +43,8 @@ cd tools/natural-earth-vector && git sparse-checkout set --no-cone '/geojson/ne_
   '/geojson/ne_50m_lakes.geojson' '/geojson/ne_10m_rivers_lake_centerlines.geojson' \
   '/geojson/ne_10m_geography_regions_polys.geojson' '/geojson/ne_50m_geography_marine_polys.geojson' \
   '/geojson/ne_50m_admin_0_countries.geojson' && cd ../..
-python3 tools/generate_maps.py     # requires numpy
+python3 tools/generate_maps.py --check    # validate configs and sources (requires numpy)
+python3 tools/generate_maps.py            # every region; or: python3 tools/generate_maps.py europa
 ```
 
 ## Group colours

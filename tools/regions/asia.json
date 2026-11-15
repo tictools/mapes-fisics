@@ -1,0 +1,32 @@
+{
+  "id": "asia",
+  "title": "Àsia",
+  "projection": {"type": "laea", "lon0": 100, "lat0": 40},
+  "extent": [[28, 32], [-165, 66], [100, 79], [100, -11], [30, 12], [150, -8], [60, 70], [-172, 55]],
+  "features": [
+    {"id": "tigris", "name": "Tigris", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Tigris"}], "dot": [44.4, 33.6], "label": [49.0, 35.8]},
+    {"id": "eufrates", "name": "Èufrates", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Euphrates"}], "dot": [40.5, 34.6], "label": [36.0, 31.8]},
+    {"id": "iangtse", "name": "Iangtsé", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Yangtze"}, {"layer": "rivers", "name": "Chang Jiang"}], "dot": [112.0, 30.3], "label": [113.5, 26.8]},
+    {"id": "indus", "name": "Indus", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Indus"}], "dot": [71.0, 29.0], "label": [66.0, 30.2]},
+    {"id": "ganges", "name": "Ganges", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Ganges"}], "dot": [83.0, 25.4], "label": [85.0, 23.2]},
+    {"id": "mekong", "name": "Mekong", "group": "Rius", "kind": "river", "source": [{"layer": "rivers", "name": "Mekong"}], "dot": [105.9, 14.5], "label": [110.0, 13.2]},
+    {"id": "himalaia", "name": "Himàlaia", "group": "Serralades", "kind": "area", "source": [{"layer": "regions", "name": "HIMALAYAS"}], "dot": [82.0, 30.0], "label": [88.0, 32.6]},
+    {"id": "everest", "name": "Everest (8.848 m)", "group": "Serralades", "kind": "peak", "manual": true, "dot": [86.925, 27.988], "label": [82.0, 25.2]},
+    {"id": "roig", "name": "Mar Roig", "group": "Mars", "kind": "area", "source": [{"layer": "marine", "name": "Red Sea"}], "dot": [38.8, 19.6], "label": [34.0, 26.0]},
+    {"id": "baikal", "name": "Llac Baikal", "group": "Llacs", "kind": "area", "source": [{"layer": "lakes", "name": "Lake Baikal"}], "dot": [108.2, 53.4], "label": [114.5, 57.3]},
+    {"id": "gobi", "name": "Desert del Gobi", "group": "Deserts", "kind": "area", "source": [{"layer": "regions", "name": "GOBI DESERT"}], "dot": [105.0, 43.0], "label": [105.0, 45.6]},
+    {"id": "arabia_desert", "name": "Desert d'Aràbia", "group": "Deserts", "kind": "area", "source": [{"layer": "regions", "name": "RUB’ AL KHALI"}], "dot": [50.0, 20.0], "label": [51.5, 17.0]},
+    {"id": "arabiga", "name": "Península Aràbiga", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "ARABIAN PENINSULA"}], "dot": [44.0, 25.0], "label": [41.5, 28.2]},
+    {"id": "india", "name": "Península de l'Índia (Indostan)", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "INDIA"}], "dot": [77.5, 17.5], "label": [73.5, 13.0]},
+    {"id": "indoxina", "name": "Península d'Indoxina", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "INDOCHINA PENINSULA"}], "dot": [101.0, 17.0], "label": [99.0, 20.2]},
+    {"id": "corea", "name": "Península de Corea", "group": "Penínsules", "kind": "area", "source": [{"layer": "regions", "name": "KOREA"}], "dot": [127.6, 37.3], "label": [133.5, 41.0]},
+    {"id": "srilanka", "name": "Sri Lanka", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "SRI LANKA"}], "dot": [80.7, 7.8], "label": [85.0, 5.6]},
+    {"id": "sumatra", "name": "Sumatra", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "SUMATRA"}], "dot": [101.0, -0.5], "label": [96.0, -3.8]},
+    {"id": "borneo", "name": "Borneo", "group": "Illes", "kind": "area", "source": [{"layer": "regions", "name": "BORNEO"}], "dot": [114.0, 1.0], "label": [114.0, 4.2]},
+    {"id": "bering", "name": "Estret de Bering", "group": "Estrets", "kind": "line", "coords": [[-169.7, 66.08], [-168.1, 65.6]], "manual": true, "dot": [-168.9, 65.85], "label": [-176.0, 62.8]},
+    {"id": "bengala", "name": "Golf de Bengala", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Bay of Bengal"}], "dot": [89.0, 15.5], "label": [89.0, 13.4]},
+    {"id": "persic", "name": "Golf Pèrsic", "group": "Golfs", "kind": "area", "source": [{"layer": "marine", "name": "Persian Gulf"}], "dot": [51.5, 27.2], "label": [57.5, 30.6]},
+    {"id": "filipines", "name": "Les Filipines", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "PHILIPPINES"}], "dot": [122.5, 12.5], "label": [129.5, 13.8]},
+    {"id": "japo", "name": "Japó", "group": "Arxipèlegs", "kind": "area", "source": [{"layer": "regions", "name": "JAPAN"}], "dot": [139.0, 36.5], "label": [145.0, 40.0]}
+  ]
+}
