@@ -1,4 +1,4 @@
-# Physical maps · Europe and Asia (v1)
+# Physical maps · Europe and Asia
 
 An interactive activity for placing geographical features on a blank map. Drag each name to its position on the map:
 
