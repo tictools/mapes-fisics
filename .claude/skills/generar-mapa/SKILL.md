@@ -91,6 +91,13 @@ Ask the user about every ambiguous and not-found feature, in one message, listin
 with their centre and bounding box. **Never invent coordinates or geometry.** A feature without a
 Natural Earth equivalent (a strait, a peak, a small area) is defined by hand only with coordinates
 the user gives or confirms, and is marked `"manual": true` (see `kind` `line` and `peak`).
+A manual feature already in another region's config (e.g. `Estret de Bering` in Asia and the
+Americas) reuses that config's `coords`/`dot`: they were confirmed there. `names.json` does not
+store them, so look them up with `grep -n '"<name>"' tools/regions/*.json`.
+
+The list may give a peak inside a range (`Andes (Aconcagua 6959 m.)`): split it into the range
+(`area`) and a `peak` named like the existing ones (`Everest (8.848 m)`), and confirm the summit
+coordinates with the user.
 
 ### 4. Write `tools/regions/<id>.json`
 
@@ -116,7 +123,9 @@ Copy the layout of `tools/regions/europa.json`: one feature per line, so diffs s
     them (`Tasmània` → `tasmania`, `Mar de Tasmània` → `mar_tasmania`).
   - `source`: list of `{"layer", "name"}` refs; several refs are merged (a sea made of sub-seas, a
     peninsula made of two countries). `"largest": true` keeps only the largest polygon (a country
-    without its islands).
+    without its islands). `"within": [min_lon, min_lat, max_lon, max_lat]` keeps only the polygons
+    entirely inside that box (one island of a country, e.g. Rapa Nui from `Chile`); take the box
+    around the part's own coordinates in the layer, not from memory.
   - `dot` (lon, lat): the answer point, well inside the area (not on the edge). Start from the centre
     given by `find_ne.py` and move it if the area is concave; `--check` warns when an area's dot is
     outside its polygons. For rivers give a point near the
@@ -160,8 +169,9 @@ Serve the folder (`python3 -m http.server 8000`) and, at desktop size and at tab
 cache (or run `await fetch('data/<id>.js', {cache: 'reload'})` in the console, then reload), and
 confirm the page has the new data before judging it.
 - `#/<id>/consulta`: every feature is highlighted where it should be, with its own geometry (not a
-  neighbour's), and no label covers another label or a dot; clicking each group title in the legend
-  hides that group on the map (its nodes get the class `is-hidden`) and clicking again shows it.
+  neighbour's), and no label covers another label or a dot; clicking a group's eye in the legend
+  shows only that group (the other groups' nodes get the class `is-hidden`), clicking another eye
+  adds its group, and clicking the picked eyes again removes them until every group shows.
   To check overlaps with a script in the page console:
   ```js
   const id = (n) => n.closest('[data-id]').dataset.id;

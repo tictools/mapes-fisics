@@ -1,5 +1,5 @@
 // @ts-check
-/* Physical maps · Europe and Asia — drag-and-drop activity and reference map.
+/* Physical maps · Europe, Asia, Africa and the Americas — drag-and-drop activity and reference map.
    Vanilla JavaScript. Dragging uses Pointer Events, which behave the same with mouse,
    pen and touchscreen (unlike the HTML5 drag & drop API, which doesn't work with a finger). */
 
@@ -51,7 +51,7 @@
   // ================================================================== constants
 
   // ------------------------------------------------------------------ maps and routes
-  const MAPS = ['europa', 'asia'];
+  const MAPS = ['europa', 'asia', 'africa', 'america'];
   /** @type {{ PLAY: Mode, REFERENCE: Mode }} */
   const MODE = { PLAY: 'activitat', REFERENCE: 'consulta' };
   const ROUTE_PREFIX = /^#\/?/;
@@ -68,7 +68,7 @@
   // ------------------------------------------------------------------ user-facing texts (Catalan)
   const LOCALE = 'ca';
   const TEXT = {
-    landingTitle: 'Mapes físics · Europa i Àsia',
+    landingTitle: 'Mapes físics · Europa, Àsia, Àfrica i Amèrica',
     loading: 'Carregant el mapa…',
     emptyData: 'dades buides',
     /** @param {string} url */
@@ -85,9 +85,12 @@
     referenceTrayLabel: 'Llegenda del mapa de consulta',
     playHelp: 'Arrossega cada nom fins al punt correcte.',
     /** @param {string} group */
-    showGroup: (group) => `Mostra només ${group}`,
+    showOnlyGroup: (group) => `Mostra només ${group}`,
     /** @param {string} group */
-    hideGroup: (group) => `Amaga ${group}`,
+    showAlsoGroup: (group) => `Mostra també ${group}`,
+    /** @param {string} group */
+    stopShowingGroup: (group) => `Deixa de mostrar ${group}`,
+    showAllGroups: 'Mostra-ho tot',
     /** @param {number} errors */
     errors: (errors) => (errors === 0 ? 'sense cap error' : errors === 1 ? 'amb 1 error' : `amb ${errors} errors`),
     /** @param {number} count @param {string} title @param {number} errors */
@@ -131,7 +134,6 @@
     groupLegend: 'group--legend',
     groupTitle: 'group__title',
     groupName: 'group__name',
-    groupEyes: 'group__eyes',
     groupEye: 'group__eye',
     icon: 'icon',
     groupSwatch: 'group__swatch',
@@ -181,7 +183,7 @@
   const BUTTON_TYPE = 'button';
 
   // ------------------------------------------------------------------ icons (sprite in index.html)
-  const ICON = { show: '#icon-eye', hide: '#icon-eye-off' };
+  const ICON_EYE = '#icon-eye';
 
   // ------------------------------------------------------------------ groups
   /** Group colours, by group key (same values as the --c-* variables in css/styles.css). */
@@ -293,16 +295,14 @@
    * @typedef {object} LegendGroup
    * @property {string} name
    * @property {HTMLElement} section
-   * @property {HTMLButtonElement} showButton
-   * @property {HTMLButtonElement} hideButton
+   * @property {HTMLButtonElement} eyeButton
    */
   /**
-   * Reference map visibility: `hidden` holds the hidden group keys; `isShowing` is true after a
-   * "show" click, so that further "show" clicks add groups instead of isolating a new one.
+   * Reference map visibility: `shownGroups` holds the keys of the groups picked with their eye;
+   * only those are visible, and every group is visible when it is empty.
    * @typedef {object} Legend
    * @property {Map<string, LegendGroup>} groups  by group key
-   * @property {Set<string>} hidden
-   * @property {boolean} isShowing
+   * @property {Set<string>} shownGroups
    */
   /**
    * @type {{ map: MapData | null, mode: Mode, svg: SVGSVGElement | null,
@@ -310,7 +310,7 @@
    *   legend: Legend }}
    */
   const state = { map: null, mode: MODE.PLAY, svg: null, dots: new Map(), solved: new Set(), errors: 0, drag: null,
-    legend: { groups: new Map(), hidden: new Set(), isShowing: false } };
+    legend: { groups: new Map(), shownGroups: new Set() } };
 
   // ================================================================== mobile warning
   function isPhone() {
@@ -475,13 +475,13 @@
   }
 
   /**
-   * Tray in reference mode: one section per group with a "show" and a "hide" eye button, and the feature names (clicking one focuses it on the map).
+   * Tray in reference mode: one section per group with an eye toggle (adds the group to the shown ones or removes it), and the feature names (clicking one focuses it on the map).
    * @param {MapData} data
    */
   function buildLegend(data) {
     const root = query(ID.trayGroups);
     root.innerHTML = '';
-    state.legend = { groups: new Map(), hidden: new Set(), isShowing: false };
+    state.legend = { groups: new Map(), shownGroups: new Set() };
     for (const groupName of groupsOf(data)) {
       const groupKey = slug(groupName);
       const features = data.features.filter((feature) => feature.group === groupName)
@@ -493,12 +493,8 @@
       const count = document.createElement('span');
       count.className = CSS.groupCount;
       count.textContent = String(features.length);
-      const showButton = eyeButton(ICON.show, TEXT.showGroup(groupName), () => showGroup(groupKey));
-      const hideButton = eyeButton(ICON.hide, TEXT.hideGroup(groupName), () => hideGroup(groupKey));
-      const eyes = document.createElement('span');
-      eyes.className = CSS.groupEyes;
-      eyes.append(showButton, hideButton);
-      title.append(count, eyes);
+      const eyeButton = groupEyeButton(() => toggleShownGroup(groupKey));
+      title.append(count, eyeButton);
       section.appendChild(title);
       const pills = document.createElement('div');
       pills.className = CSS.groupPills;
@@ -509,60 +505,64 @@
       }
       section.appendChild(pills);
       root.appendChild(section);
-      state.legend.groups.set(groupKey, { name: groupName, section, showButton, hideButton });
+      state.legend.groups.set(groupKey, { name: groupName, section, eyeButton });
     }
     applyVisibility();
   }
 
-  /** An icon-only button of a legend group. @param {string} icon @param {string} label @param {() => void} onClick */
-  function eyeButton(icon, label, onClick) {
+  /** The eye toggle of a legend group (labels are set by applyVisibility). @param {() => void} onClick */
+  function groupEyeButton(onClick) {
     const button = document.createElement('button');
     button.type = BUTTON_TYPE;
     button.className = CSS.groupEye;
-    button.title = label;
-    button.setAttribute(ARIA_LABEL, label);
     const svg = svgElement('svg', { class: CSS.icon, 'aria-hidden': String(true) }, button);
-    svgElement('use', { href: icon }, svg);
+    svgElement('use', { href: ICON_EYE }, svg);
     button.addEventListener('click', onClick);
     return button;
   }
 
   /**
-   * "Show" eye: shows only this group, hiding the rest; further "show" clicks add groups.
+   * Eye toggle, cumulative: the first one picked shows only its group, the next ones add their
+   * groups; clicking a picked one removes its group, and removing the last one shows every group.
    * @param {string} groupKey
    */
-  function showGroup(groupKey) {
-    const legend = state.legend;
-    if (!legend.isShowing) legend.hidden = new Set(legend.groups.keys());
-    legend.hidden.delete(groupKey);
-    legend.isShowing = true;
+  function toggleShownGroup(groupKey) {
+    const shownGroups = state.legend.shownGroups;
+    if (shownGroups.has(groupKey)) shownGroups.delete(groupKey);
+    else shownGroups.add(groupKey);
     applyVisibility();
   }
 
-  /** "Hide" eye: hides this group and shows every other one. @param {string} groupKey */
-  function hideGroup(groupKey) {
-    state.legend.hidden = new Set([groupKey]);
-    state.legend.isShowing = false;
-    applyVisibility();
+  /**
+   * What clicking a group's eye will do.
+   * @param {string} groupName @param {boolean} isShown @param {number} shownCount
+   */
+  function eyeLabel(groupName, isShown, shownCount) {
+    if (!isShown) return shownCount === 0 ? TEXT.showOnlyGroup(groupName) : TEXT.showAlsoGroup(groupName);
+    return shownCount === 1 ? TEXT.showAllGroups : TEXT.stopShowingGroup(groupName);
   }
 
   /** Reset button: every group visible again and no focused feature. */
   function showAllGroups() {
-    state.legend.hidden = new Set();
-    state.legend.isShowing = false;
+    state.legend.shownGroups.clear();
     clearFocus();
     applyVisibility();
   }
 
-  /** Syncs the eye buttons, the tray sections and the map with state.legend. */
+  /** Syncs the eye toggles, the tray sections and the map with state.legend. */
   function applyVisibility() {
     const svg = state.svg;
-    const hidden = state.legend.hidden;
+    const shownGroups = state.legend.shownGroups;
+    /** @param {string} groupKey */
+    const isGroupVisible = (groupKey) => shownGroups.size === 0 || shownGroups.has(groupKey);
     for (const [groupKey, group] of state.legend.groups) {
-      const isVisible = !hidden.has(groupKey);
+      const isVisible = isGroupVisible(groupKey);
+      const isShown = shownGroups.has(groupKey);
       group.section.classList.toggle(CSS.groupOff, !isVisible);
-      group.showButton.setAttribute(ARIA_PRESSED, String(isVisible && state.legend.isShowing));
-      group.hideButton.setAttribute(ARIA_PRESSED, String(!isVisible));
+      group.eyeButton.setAttribute(ARIA_PRESSED, String(isShown));
+      const label = eyeLabel(group.name, isShown, shownGroups.size);
+      group.eyeButton.title = label;
+      group.eyeButton.setAttribute(ARIA_LABEL, label);
       if (svg) {
         svg.querySelectorAll(`[${DATA_GROUP}="${groupKey}"]`)
           .forEach((node) => node.classList.toggle(CSS.hidden, !isVisible));
@@ -570,7 +570,7 @@
     }
     const focusedId = svg ? svg.dataset.focus : undefined;
     const focused = focusedId ? state.dots.get(focusedId) : undefined;
-    if (focused && hidden.has(slug(focused.feature.group))) clearFocus();
+    if (focused && !isGroupVisible(slug(focused.feature.group))) clearFocus();
     updateResetButton();
   }
 
@@ -578,7 +578,7 @@
   function updateResetButton() {
     const svg = state.svg;
     const hasFocus = Boolean(svg && svg.dataset.focus);
-    /** @type {HTMLButtonElement} */ (query(ID.showAll)).disabled = state.legend.hidden.size === 0 && !hasFocus;
+    /** @type {HTMLButtonElement} */ (query(ID.showAll)).disabled = state.legend.shownGroups.size === 0 && !hasFocus;
   }
 
   /** Removes the focus from the map and the legend. */

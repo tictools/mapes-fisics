@@ -12,7 +12,7 @@ The last column is where to search and which Natural Earth classes are an accept
 | Serralades | `serralades` | red `#C62828` | triangle pattern | `area`, `peak` | `regions` (Range/mtn) |
 | Mars | `mars` | turquoise `#00A5B5` | dotted edge | `area` | `marine` (sea); inland seas also in `lakes` (Lake) |
 | Penínsules | `peninsules` | purple `#7B1FA2` | dashed edge | `area` | `regions` (Peninsula, Pen/cape); else `countries` (Admin-0 country, with `largest`) |
-| Illes | `illes` | green `#2E7D32` | | `area` | `regions` (Island) |
+| Illes | `illes` | green `#2E7D32` | | `area` | `regions` (Island); else `countries` (one part, with `within`) |
 | Planes | `planes` | yellow `#D9A300` | | `area` | `regions` (Plain, Lowland, Basin) |
 | Llacs | `llacs` | navy blue `#1A237E` | | `area` | `lakes` (Lake, Alkaline Lake; a lake can have several parts, e.g. Lake Eyre North + South) |
 | Deserts | `deserts` | orange `#EF6C00` | | `area` | `regions` (Desert) |
