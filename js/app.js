@@ -84,7 +84,10 @@
     playTrayLabel: 'Accidents geogràfics per situar',
     referenceTrayLabel: 'Llegenda del mapa de consulta',
     playHelp: 'Arrossega cada nom fins al punt correcte.',
-    referenceHelp: 'Toca un grup per amagar-lo o mostrar-lo, i un nom per destacar-lo al mapa.',
+    /** @param {string} group */
+    showGroup: (group) => `Mostra només ${group}`,
+    /** @param {string} group */
+    hideGroup: (group) => `Amaga ${group}`,
     /** @param {number} errors */
     errors: (errors) => (errors === 0 ? 'sense cap error' : errors === 1 ? 'amb 1 error' : `amb ${errors} errors`),
     /** @param {number} count @param {string} title @param {number} errors */
@@ -105,6 +108,7 @@
     doneHome: '#done-home',
     home: '#btn-home',
     reset: '#btn-reset',
+    showAll: '#btn-show-all',
     mapTitle: '#map-title',
     modePlay: '#mode-play',
     modeReference: '#mode-ref',
@@ -126,7 +130,10 @@
     group: 'group',
     groupLegend: 'group--legend',
     groupTitle: 'group__title',
-    groupToggle: 'group__toggle',
+    groupName: 'group__name',
+    groupEyes: 'group__eyes',
+    groupEye: 'group__eye',
+    icon: 'icon',
     groupSwatch: 'group__swatch',
     groupCount: 'group__count',
     groupPills: 'group__pills',
@@ -169,9 +176,12 @@
   const DATA_GROUP = 'data-group';
   const ARIA_CURRENT = 'aria-current';
   const ARIA_CURRENT_PAGE = 'page';
+  const ARIA_LABEL = 'aria-label';
   const ARIA_PRESSED = 'aria-pressed';
-  const ARIA_TRUE = 'true';
   const BUTTON_TYPE = 'button';
+
+  // ------------------------------------------------------------------ icons (sprite in index.html)
+  const ICON = { show: '#icon-eye', hide: '#icon-eye-off' };
 
   // ------------------------------------------------------------------ groups
   /** Group colours, by group key (same values as the --c-* variables in css/styles.css). */
@@ -279,10 +289,28 @@
    * @property {string | null} target
    */
   /**
-   * @type {{ map: MapData | null, mode: Mode, svg: SVGSVGElement | null,
-   *   dots: Map<string, { feature: Feature, node: SVGGElement }>, solved: Set<string>, errors: number, drag: Drag | null }}
+   * A group of the reference legend and its controls.
+   * @typedef {object} LegendGroup
+   * @property {string} name
+   * @property {HTMLElement} section
+   * @property {HTMLButtonElement} showButton
+   * @property {HTMLButtonElement} hideButton
    */
-  const state = { map: null, mode: MODE.PLAY, svg: null, dots: new Map(), solved: new Set(), errors: 0, drag: null };
+  /**
+   * Reference map visibility: `hidden` holds the hidden group keys; `isShowing` is true after a
+   * "show" click, so that further "show" clicks add groups instead of isolating a new one.
+   * @typedef {object} Legend
+   * @property {Map<string, LegendGroup>} groups  by group key
+   * @property {Set<string>} hidden
+   * @property {boolean} isShowing
+   */
+  /**
+   * @type {{ map: MapData | null, mode: Mode, svg: SVGSVGElement | null,
+   *   dots: Map<string, { feature: Feature, node: SVGGElement }>, solved: Set<string>, errors: number, drag: Drag | null,
+   *   legend: Legend }}
+   */
+  const state = { map: null, mode: MODE.PLAY, svg: null, dots: new Map(), solved: new Set(), errors: 0, drag: null,
+    legend: { groups: new Map(), hidden: new Set(), isShowing: false } };
 
   // ================================================================== mobile warning
   function isPhone() {
@@ -380,7 +408,7 @@
     }
     /** @type {HTMLAnchorElement} */ (query(ID.doneReference)).href = referenceHash(mapId);
     query(ID.tray).setAttribute('aria-label', isReference ? TEXT.referenceTrayLabel : TEXT.playTrayLabel);
-    query(ID.trayHelp).textContent = isReference ? TEXT.referenceHelp : TEXT.playHelp;
+    query(ID.trayHelp).textContent = TEXT.playHelp;
   }
 
   // ================================================================== activity
@@ -429,7 +457,10 @@
   function fillGroupTitle(title, groupKey, groupName) {
     const swatch = document.createElement('span');
     swatch.className = `${CSS.groupSwatch} ${modifier(CSS.groupSwatch, groupKey)}`;
-    title.append(swatch, groupName);
+    const name = document.createElement('span');
+    name.className = CSS.groupName;
+    name.textContent = groupName;
+    title.append(swatch, name);
   }
 
   /** A pill (button) with a feature name. @param {Feature} feature @param {string} groupKey @param {string} extraClass */
@@ -444,38 +475,31 @@
   }
 
   /**
-   * Tray in reference mode: one section per group, toggling the group on the map,
-   * with the feature names (clicking one focuses it on the map).
+   * Tray in reference mode: one section per group with a "show" and a "hide" eye button, and the feature names (clicking one focuses it on the map).
    * @param {MapData} data
    */
   function buildLegend(data) {
     const root = query(ID.trayGroups);
     root.innerHTML = '';
+    state.legend = { groups: new Map(), hidden: new Set(), isShowing: false };
     for (const groupName of groupsOf(data)) {
       const groupKey = slug(groupName);
       const features = data.features.filter((feature) => feature.group === groupName)
         .sort((first, second) => first.name.localeCompare(second.name, LOCALE));
       const section = groupSection(groupKey, CSS.groupLegend);
-      const toggle = document.createElement('button');
-      toggle.type = BUTTON_TYPE;
-      toggle.className = `${CSS.groupTitle} ${CSS.groupToggle}`;
-      toggle.setAttribute(ARIA_PRESSED, ARIA_TRUE);
-      fillGroupTitle(toggle, groupKey, groupName);
+      const title = document.createElement('h3');
+      title.className = CSS.groupTitle;
+      fillGroupTitle(title, groupKey, groupName);
       const count = document.createElement('span');
       count.className = CSS.groupCount;
       count.textContent = String(features.length);
-      toggle.append(SPACE, count);
-      toggle.addEventListener('click', () => {
-        const visible = toggle.getAttribute(ARIA_PRESSED) !== ARIA_TRUE;
-        toggle.setAttribute(ARIA_PRESSED, String(visible));
-        section.classList.toggle(CSS.groupOff, !visible);
-        const svg = state.svg;
-        if (svg) {
-          svg.querySelectorAll(`[${DATA_GROUP}="${groupKey}"]`)
-            .forEach((node) => node.classList.toggle(CSS.hidden, !visible));
-        }
-      });
-      section.appendChild(toggle);
+      const showButton = eyeButton(ICON.show, TEXT.showGroup(groupName), () => showGroup(groupKey));
+      const hideButton = eyeButton(ICON.hide, TEXT.hideGroup(groupName), () => hideGroup(groupKey));
+      const eyes = document.createElement('span');
+      eyes.className = CSS.groupEyes;
+      eyes.append(showButton, hideButton);
+      title.append(count, eyes);
+      section.appendChild(title);
       const pills = document.createElement('div');
       pills.className = CSS.groupPills;
       for (const feature of features) {
@@ -485,7 +509,86 @@
       }
       section.appendChild(pills);
       root.appendChild(section);
+      state.legend.groups.set(groupKey, { name: groupName, section, showButton, hideButton });
     }
+    applyVisibility();
+  }
+
+  /** An icon-only button of a legend group. @param {string} icon @param {string} label @param {() => void} onClick */
+  function eyeButton(icon, label, onClick) {
+    const button = document.createElement('button');
+    button.type = BUTTON_TYPE;
+    button.className = CSS.groupEye;
+    button.title = label;
+    button.setAttribute(ARIA_LABEL, label);
+    const svg = svgElement('svg', { class: CSS.icon, 'aria-hidden': String(true) }, button);
+    svgElement('use', { href: icon }, svg);
+    button.addEventListener('click', onClick);
+    return button;
+  }
+
+  /**
+   * "Show" eye: shows only this group, hiding the rest; further "show" clicks add groups.
+   * @param {string} groupKey
+   */
+  function showGroup(groupKey) {
+    const legend = state.legend;
+    if (!legend.isShowing) legend.hidden = new Set(legend.groups.keys());
+    legend.hidden.delete(groupKey);
+    legend.isShowing = true;
+    applyVisibility();
+  }
+
+  /** "Hide" eye: hides this group and shows every other one. @param {string} groupKey */
+  function hideGroup(groupKey) {
+    state.legend.hidden = new Set([groupKey]);
+    state.legend.isShowing = false;
+    applyVisibility();
+  }
+
+  /** Reset button: every group visible again and no focused feature. */
+  function showAllGroups() {
+    state.legend.hidden = new Set();
+    state.legend.isShowing = false;
+    clearFocus();
+    applyVisibility();
+  }
+
+  /** Syncs the eye buttons, the tray sections and the map with state.legend. */
+  function applyVisibility() {
+    const svg = state.svg;
+    const hidden = state.legend.hidden;
+    for (const [groupKey, group] of state.legend.groups) {
+      const isVisible = !hidden.has(groupKey);
+      group.section.classList.toggle(CSS.groupOff, !isVisible);
+      group.showButton.setAttribute(ARIA_PRESSED, String(isVisible && state.legend.isShowing));
+      group.hideButton.setAttribute(ARIA_PRESSED, String(!isVisible));
+      if (svg) {
+        svg.querySelectorAll(`[${DATA_GROUP}="${groupKey}"]`)
+          .forEach((node) => node.classList.toggle(CSS.hidden, !isVisible));
+      }
+    }
+    const focusedId = svg ? svg.dataset.focus : undefined;
+    const focused = focusedId ? state.dots.get(focusedId) : undefined;
+    if (focused && hidden.has(slug(focused.feature.group))) clearFocus();
+    updateResetButton();
+  }
+
+  /** The reset button is only active when something is hidden or focused. */
+  function updateResetButton() {
+    const svg = state.svg;
+    const hasFocus = Boolean(svg && svg.dataset.focus);
+    /** @type {HTMLButtonElement} */ (query(ID.showAll)).disabled = state.legend.hidden.size === 0 && !hasFocus;
+  }
+
+  /** Removes the focus from the map and the legend. */
+  function clearFocus() {
+    const svg = state.svg;
+    if (!svg) return;
+    svg.querySelectorAll(`.${CSS.focus}`).forEach((node) => node.classList.remove(CSS.focus));
+    document.querySelectorAll(`.${CSS.pillStatic}.${CSS.focus}`).forEach((node) => node.classList.remove(CSS.focus));
+    delete svg.dataset.focus;
+    svg.classList.remove(CSS.mapHasFocus);
   }
 
   /** Highlights one feature and dims the rest; clicking it again clears the focus. @param {string} featureId */
@@ -493,14 +596,14 @@
     const svg = state.svg;
     if (!svg) return;
     const same = svg.dataset.focus === featureId;
-    svg.querySelectorAll(`.${CSS.focus}`).forEach((node) => node.classList.remove(CSS.focus));
-    document.querySelectorAll(`.${CSS.pillStatic}.${CSS.focus}`).forEach((node) => node.classList.remove(CSS.focus));
-    if (same) { delete svg.dataset.focus; svg.classList.remove(CSS.mapHasFocus); return; }
+    clearFocus();
+    if (same) { updateResetButton(); return; }
     svg.dataset.focus = featureId;
     svg.classList.add(CSS.mapHasFocus);
     svg.querySelectorAll(`[${DATA_ID}="${featureId}"]`).forEach((node) => node.classList.add(CSS.focus));
     const pill = document.querySelector(featureSelector(CSS.pillStatic, featureId));
     if (pill) pill.classList.add(CSS.focus);
+    updateResetButton();
   }
 
   /** Group names in order of first appearance. @param {MapData} data */
@@ -828,6 +931,7 @@
     query(ID.reset).addEventListener('click', () => {
       if (state.map && state.mode === MODE.PLAY) startGame(state.map);
     });
+    query(ID.showAll).addEventListener('click', showAllGroups);
     query(ID.doneClose).addEventListener('click', () => { query(ID.done).hidden = true; });
     query(ID.doneReset).addEventListener('click', () => {
       query(ID.done).hidden = true;
