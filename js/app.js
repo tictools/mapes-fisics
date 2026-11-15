@@ -85,7 +85,6 @@
     referenceMapLabel: (title) => `Mapa de consulta de ${title}`,
     playTrayLabel: 'Accidents geogràfics per situar',
     referenceTrayLabel: 'Llegenda del mapa de consulta',
-    playHelp: 'Arrossega cada nom fins al punt correcte.',
     /** @param {string} group */
     showOnlyGroup: (group) => `Mostra només ${group}`,
     /** @param {string} group */
@@ -119,7 +118,6 @@
     modeReference: '#mode-ref',
     mapWrap: '#map-wrap',
     tray: '#tray',
-    trayHelp: '#tray-help',
     trayGroups: '#tray-groups',
     statOk: '#stat-ok',
     statErrors: '#stat-err',
@@ -427,7 +425,6 @@
     }
     /** @type {HTMLAnchorElement} */ (query(ID.doneReference)).href = referenceHash(mapId);
     query(ID.tray).setAttribute('aria-label', isReference ? TEXT.referenceTrayLabel : TEXT.playTrayLabel);
-    query(ID.trayHelp).textContent = TEXT.playHelp;
   }
 
   // ================================================================== activity
@@ -499,9 +496,21 @@
    */
   function buildLegend(data) {
     const root = query(ID.trayGroups);
-    root.innerHTML = '';
     state.legend = { groups: new Map(), shownGroups: new Set() };
-    for (const groupName of groupsOf(data)) {
+    const sections = legendSections(data);
+    root.replaceChildren(...sections.map((group) => group.section));
+    for (const { groupKey, ...group } of sections) state.legend.groups.set(groupKey, group);
+    applyVisibility();
+    fitTray();
+  }
+
+  /**
+   * The legend sections of a map: title with count and eye toggle, and the feature names sorted.
+   * @param {MapData} data
+   * @returns {(LegendGroup & { groupKey: string })[]}
+   */
+  function legendSections(data) {
+    return groupsOf(data).map((groupName) => {
       const groupKey = groupKeyOf(groupName);
       const features = data.features.filter((feature) => feature.group === groupName)
         .sort((first, second) => first.name.localeCompare(second.name, LOCALE));
@@ -523,31 +532,39 @@
         pills.appendChild(pill);
       }
       section.appendChild(pills);
-      root.appendChild(section);
-      state.legend.groups.set(groupKey, { name: groupName, section, eyeButton, eyeIcon });
-    }
-    applyVisibility();
-    fitTray();
+      return { groupKey, name: groupName, section, eyeButton, eyeIcon };
+    });
   }
 
   /**
-   * Picks the first tray layout and the largest font size at which the tray, with every group
-   * expanded, fits without scrolling (it still scrolls if nothing fits). Used by both modes.
+   * Picks the first tray layout and the largest font size at which the tray fits without scrolling
+   * (it still scrolls if nothing fits). Both modes use the same size: it is measured on the full
+   * reference legend of the map (every group expanded), whatever the mode and the solved features.
+   * Only if the activity tray still overflows (its shuffled names can wrap differently) does it get smaller.
    */
   function fitTray() {
+    const map = state.map;
+    if (!map) return;
     const tray = query(ID.tray);
+    const root = query(ID.trayGroups);
     const overflows = () => tray.scrollHeight > tray.clientHeight;
+    /** @param {number} size */
+    const setFontSize = (size) => tray.style.setProperty(TRAY_FONT_PROPERTY, size + PX);
+    const content = [...root.childNodes];
+    root.replaceChildren(...legendSections(map).map((group) => group.section));
     tray.classList.add(CSS.trayMeasuring);
+    let fontSize = TRAY_FONT_PX.max;
+    let minFontPx = TRAY_FONT_PX.max;
     for (const layout of TRAY_LAYOUTS) {
       tray.classList.toggle(CSS.trayTwoColumns, layout.twoColumns);
-      let fontSize = TRAY_FONT_PX.max;
-      tray.style.setProperty(TRAY_FONT_PROPERTY, fontSize + PX);
-      while (overflows() && fontSize > layout.minFontPx) {
-        fontSize -= TRAY_FONT_PX.step;
-        tray.style.setProperty(TRAY_FONT_PROPERTY, fontSize + PX);
-      }
+      fontSize = TRAY_FONT_PX.max;
+      minFontPx = layout.minFontPx;
+      setFontSize(fontSize);
+      while (overflows() && fontSize > minFontPx) setFontSize(fontSize -= TRAY_FONT_PX.step);
       if (!overflows()) break;
     }
+    root.replaceChildren(...content);
+    while (overflows() && fontSize > minFontPx) setFontSize(fontSize -= TRAY_FONT_PX.step);
     tray.classList.remove(CSS.trayMeasuring);
   }
 

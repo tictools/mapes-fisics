@@ -22,6 +22,7 @@
   --pill-radius: .5rem;
   --panel-gap: .5rem;
   --card-gap: .25rem;
+  --tray-bar-height: 2rem;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -90,7 +91,6 @@ a.btn { text-decoration: none; text-align: center; }
   background: #fff; border-bottom: 1px solid var(--line); flex: none;
 }
 .topbar__title { font-size: 22px; margin-right: auto; }
-.topbar__stats { display: flex; gap: 18px; font-size: 16px; }
 .stat__label { color: var(--muted); }
 .stat--err strong { color: var(--colour-mountains); }
 
@@ -102,7 +102,6 @@ a.btn { text-decoration: none; text-align: center; }
 }
 .mode-switch__opt:hover { color: var(--ink); }
 .mode-switch__opt[aria-current="page"] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(31, 42, 51, .15); }
-.game.is-reference .topbar__stats, .game.is-reference #btn-reset { display: none; }
 
 .game__body {
   flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 330px;
@@ -121,7 +120,9 @@ a.btn { text-decoration: none; text-align: center; }
   min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--panel-gap);
   font-size: var(--tray-font-size, 14px);
 }
-.tray__help { margin: 0; padding: .3em .3em 0; color: var(--muted); font-size: 1em; }
+/* Fixed size, not scaled by fitTray, so the bar is the same in both modes (no layout shift when switching) */
+.tray__bar { display: flex; align-items: center; gap: .75em; flex: none; height: var(--tray-bar-height); font-size: .875rem; }
+.tray__stats { display: flex; gap: 1em; padding-left: .3em; }
 .tray__groups { display: flex; flex-direction: column; gap: var(--card-gap); }
 .tray.is-two-columns .tray__groups { display: block; column-count: 2; column-gap: var(--card-gap); }
 .tray.is-two-columns .group { break-inside: avoid; margin-bottom: var(--card-gap); }
@@ -132,6 +133,7 @@ a.btn { text-decoration: none; text-align: center; }
 .group__title {
   display: flex; align-items: center; gap: .65em; font-size: .8em; font-weight: 800;
   text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 .45em;
+  min-height: 1.6em; /* height of the legend eye (2.2em less its -.3em margins), so titles match in both modes */
 }
 .group__swatch { width: 16px; height: 12px; border-radius: 3px; background: var(--gc); opacity: .9; }
 .group__swatch--mountains { background: repeating-linear-gradient(135deg, var(--gc) 0 3px, #fff 3px 5px); }
@@ -141,17 +143,18 @@ a.btn { text-decoration: none; text-align: center; }
 .group.is-empty { display: none; }
 .tray__done { display: none; margin: 0; padding: 1em; border-radius: var(--radius); background: #EAF6EC; color: var(--colour-islands); font-weight: 700; text-align: center; }
 .tray.is-complete .tray__done { display: block; }
-.tray.is-complete .tray__help { display: none; }
+
+/* Tray bar: score and Reinicia in the activity, Restableix in the reference map */
+.tray__action { display: flex; align-items: center; gap: .55em; margin: 0 0 0 auto; padding: .4em .9em; font-size: 1em; flex: none; }
+.tray__action:disabled { opacity: .45; cursor: default; }
+.tray__action:disabled:hover { background: transparent; }
+.game.is-reference .tray__stats, .game.is-reference .tray__action--play,
+.game:not(.is-reference) .tray__action--reference { display: none; }
 
 /* Legend (reference mode) */
-.tray__reset { display: none; align-items: center; gap: .55em; margin: 0; padding: .4em .9em; font-size: 1em; flex: none; }
-.tray__reset:disabled { opacity: .45; cursor: default; }
-.tray__reset:disabled:hover { background: transparent; }
-.game.is-reference .tray__help { display: none; }
-.game.is-reference .tray__reset { display: flex; margin-left: auto; }
 .group__count { margin-left: auto; font-weight: 700; letter-spacing: 0; }
 .group__eye {
-  display: grid; place-items: center; width: 2.2em; height: 2.2em; margin: -.3em 0; padding: 0; flex: none;
+  font: inherit; display: grid; place-items: center; width: 2.2em; height: 2.2em; margin: -.3em 0; padding: 0; flex: none;
   border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer;
 }
 .group__eye:hover { background: var(--bg); color: var(--ink); }
@@ -255,6 +258,5 @@ svg.has-focus .hl:not(.is-focus), svg.has-focus .lbl:not(.is-focus), svg.has-foc
 @media (max-width: 900px) {
   .topbar { gap: 10px; padding: 8px 12px; }
   .topbar__title { font-size: 19px; }
-  .stat__label { display: none; }
   .mode-switch__opt { padding: 6px 10px; }
 }
