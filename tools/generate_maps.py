@@ -7,6 +7,10 @@ Usage:
     python3 tools/generate_maps.py europa asia  # only these regions
     python3 tools/generate_maps.py --check      # validate configs, sources and layout, write nothing
 
+Exit code 1 if any region has an error (invalid config, source not in Natural Earth) or, with --check,
+a layout warning (overlapping labels, dot outside its area, item outside the map). Without --check,
+warnings are printed but the data is still written.
+
 Natural Earth is read from tools/natural-earth-vector/geojson (override with NE_DIR=...).
 Only needs re-running to change features, base colours or the map framing.
 The site doesn't need this script to work (the data files are already generated).
@@ -209,6 +213,21 @@ def river_lines(refs):
     return found
 
 
+def inside(plist, ll):
+    """Whether (lon, lat) is inside the polygons (even-odd over every ring, so holes count)."""
+    x, y = ll
+    hit = False
+    for poly in plist:
+        for ring in poly:
+            r = np.array(ring)[:, :2]
+            x0, y0, x1, y1 = r[:-1, 0], r[:-1, 1], r[1:, 0], r[1:, 1]
+            cross = (y0 > y) != (y1 > y)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                xi = x0 + (y - y0) * (x1 - x0) / (y1 - y0)
+            hit ^= bool(np.count_nonzero(cross & (x < xi)) % 2)
+    return hit
+
+
 def snap_to_lines(frame, lls, ll):
     """Point on the line (river) closest to the reference point."""
     best, bd = None, 1e18
@@ -254,14 +273,17 @@ def base_layers(frame, grat_cfg=None):
 
 
 # ---------------------------------------------------------------- features
-def build(frame, features):
+def build(frame, features, warns):
     feats = []
     for c in features:
         f = {'id': c['id'], 'name': c['name'], 'group': c['group'], 'kind': c['kind']}
         kind = c['kind']
         if kind == 'area':
-            f['d'] = poly_d(frame, source_polys(c['source']), 0.5)
+            src = source_polys(c['source'])
+            f['d'] = poly_d(frame, src, 0.5)
             f['dot'] = frame.pt(c['dot'])
+            if not inside(src, c['dot']):
+                warns.append(f"{c['id']}: dot outside its area (move it well inside the polygon)")
         elif kind == 'river':
             lls = river_lines(c['source'])
             f['d'] = line_d(frame, lls, 0.4)
@@ -340,14 +362,14 @@ def label_box(f):
     """Approximate label box in viewBox units (24 px bold text, about 12 px per character; approximate, confirm in the browser)."""
     lines = split_label(f['name'])
     w = max(len(ln) for ln in lines) * 12 + 6
-    h = len(lines) * 27 + 6
+    h = len(lines) * 27 + 2
     x, y = f['label']
     return x - w / 2, y - h / 2, x + w / 2, y + h / 2
 
 
 def layout_warnings(data):
-    """Labels that overlap, and dots or labels outside the map."""
-    out = []
+    """Labels that overlap or cover other dots, and dots or labels outside the map."""
+    out = list(data.pop('_warnings', []))
     W_, H_ = data['viewBox'][2], data['viewBox'][3]
     feats = data['features']
     boxes = [label_box(f) for f in feats]
@@ -364,6 +386,12 @@ def layout_warnings(data):
             a, b = boxes[i], boxes[j]
             if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
                 out.append(f"{feats[i]['id']} / {feats[j]['id']}: labels overlap")
+    r = 7  # dot radius
+    for f, b in zip(feats, boxes):
+        for g in feats:
+            x, y = g['dot']
+            if g is not f and b[0] < x + r and x - r < b[2] and b[1] < y + r and y - r < b[3]:
+                out.append(f"{f['id']}: label covers the dot of {g['id']}")
     return out
 
 
@@ -381,14 +409,17 @@ def frame_of(cfg):
 def report(path, data):
     warns = layout_warnings(data)
     status = 'OK' if not warns else f'{len(warns)} warning(s)'
-    print(f"{os.path.relpath(path)}: {status} ({len(data['features'])} accidents)", *warns, sep='\n  - ')
+    print(f"{os.path.relpath(path)}: {status} ({len(data['features'])} features)", *warns, sep='\n  - ')
+    return warns
 
 
 def build_region(cfg):
     frame = frame_of(cfg)
     key = cfg['id']
+    warns = []
     data = {'id': key, 'title': cfg['title'], 'viewBox': [0, 0, W, frame.H],
-            'base': base_layers(frame, cfg.get('graticule')), 'features': build(frame, cfg['features'])}
+            'base': base_layers(frame, cfg.get('graticule')), 'features': build(frame, cfg['features'], warns)}
+    data['_warnings'] = warns  # removed by layout_warnings() before saving
     return data
 
 
@@ -420,8 +451,14 @@ def main(argv):
             failed = True
             print(f'{os.path.relpath(path)}:', *errs, sep='\n  - ')
             continue
-        data = build_region(cfg)  # fails if a source is not in Natural Earth
-        report(path, data)
+        try:
+            data = build_region(cfg)
+        except SystemExit as e:  # a source is not in Natural Earth
+            failed = True
+            print(f'{os.path.relpath(path)}:', e, sep='\n  - ')
+            continue
+        if report(path, data) and check:
+            failed = True
         if not check:
             save(data)
     return 1 if failed else 0

@@ -39,9 +39,16 @@ Catalan → Natural Earth table, so update it with every new feature.
   `Adriatic Sea`, `Ionian Sea`, `Aegean Sea`, `Balearic Sea`, `Golfe du Lion`; the Baltic includes
   `Gulf of Bothnia` and `Gulf of Finland`. Search with `--near` and include every part.
 - **Inland seas** can be in `marine` or `lakes`: the Caspian Sea is in `marine` in the current data.
-- **Rivers are many segments, sometimes with different names** (e.g. `Danube` and `Donau`, `Yangtze`
-  and `Chang Jiang`). Search by English name and by local name with `--near`, and list every name of
-  the course you want in `source`. Check in the browser that the whole course is highlighted.
+- **Rivers are many segments, sometimes with different names** (e.g. `Danube` and `Donau`, `Rhine`,
+  `Rhein` and `Rhin`, `Yangtze` and `Chang Jiang`). `find_ne.py` merges the segments of one name, so
+  compare each name's bounding box with the real course: search by English and local names with
+  `--near`, and list every name of the course you want in `source` (not the delta branches unless
+  asked). Check in the browser that the whole course is highlighted.
+- **Classes are not always the expected one**: river segments through lakes are `Lake Centerline`,
+  salt lakes are `Alkaline Lake`, and `PENÍNSULA IBÉRICA` is a `Plateau`. See the accepted classes in
+  `groups.md`.
+- **Same-name parts**: some features are split into several polygons with the same name (e.g. the
+  `Great Barrier Reef` in `marine`); one ref takes all of them.
 - **Peninsulas** are not always in `regions`. When a peninsula is a country (Italy) or two (Iberia:
   Spain + Portugal), use `countries` with `"largest": true` to drop islands and overseas territories.
 - **Straits** are not drawn from `marine` (the polygons are too small at this scale): use `kind`

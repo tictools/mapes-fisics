@@ -2,17 +2,19 @@
 
 The group of a feature sets its colour, its distinguishing mark, the kind of geometry it accepts and
 where to look for it in Natural Earth. Use the group names exactly as written here (with accents).
-Tray order in a config follows this table.
+New regions list their groups in the order of this table (it becomes the tray order).
 
-| Group | Key (CSS/JS) | Colour | Mark | `kind` | Natural Earth: layer (class) |
+The last column is where to search and which Natural Earth classes are an acceptable match.
+
+| Group | Key (CSS/JS) | Colour | Mark | `kind` | Natural Earth: layer (accepted classes) |
 |---|---|---|---|---|---|
-| Rius | `rius` | blue `#1E6FE0` | highlighted course | `river` | `rivers` (River) |
+| Rius | `rius` | blue `#1E6FE0` | highlighted course | `river` | `rivers` (River, Lake Centerline: segments through lakes) |
 | Serralades | `serralades` | red `#C62828` | triangle pattern | `area`, `peak` | `regions` (Range/mtn) |
-| Mars | `mars` | turquoise `#00A5B5` | dotted edge | `area` | `marine` (sea); inland seas also in `lakes` |
-| Penínsules | `peninsules` | purple `#7B1FA2` | dashed edge | `area` | `regions` (Peninsula, Pen/cape); else `countries` |
+| Mars | `mars` | turquoise `#00A5B5` | dotted edge | `area` | `marine` (sea); inland seas also in `lakes` (Lake) |
+| Penínsules | `peninsules` | purple `#7B1FA2` | dashed edge | `area` | `regions` (Peninsula, Pen/cape); else `countries` (Admin-0 country, with `largest`) |
 | Illes | `illes` | green `#2E7D32` | | `area` | `regions` (Island) |
 | Planes | `planes` | yellow `#D9A300` | | `area` | `regions` (Plain, Lowland, Basin) |
-| Llacs | `llacs` | navy blue `#1A237E` | | `area` | `lakes` (Lake) |
+| Llacs | `llacs` | navy blue `#1A237E` | | `area` | `lakes` (Lake, Alkaline Lake; a lake can have several parts, e.g. Lake Eyre North + South) |
 | Deserts | `deserts` | orange `#EF6C00` | | `area` | `regions` (Desert) |
 | Estrets | `estrets` | black `#111111` | | `line` (manual) | none: a short line across the strait, by hand |
 | Golfs | `golfs` | pink `#E8558A` | dotted edge | `area` | `marine` (gulf, bay) |
