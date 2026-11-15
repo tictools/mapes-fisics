@@ -2,3 +2,4 @@ tools/natural-earth-vector/
 .DS_Store
 __pycache__/
 node_modules/
+plans/
