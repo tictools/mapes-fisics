@@ -6,13 +6,17 @@ Usage:
     python3 tools/find_ne.py alps                       # every layer
     python3 tools/find_ne.py "black sea" --layer marine
     python3 tools/find_ne.py gulf --layer marine --near 50,27 --limit 5
+    python3 tools/find_ne.py iberia --word               # whole words only (not Siberia)
 
 The search is case- and accent-insensitive and matches a substring of any name field
-(name, alternative names, English and Spanish names). Each result shows the value to copy
-into the region config ({"layer": .., "name": ..}), its Natural Earth class, the centre of its
-bounding box (lon, lat) and the bounding box itself. With --near, results are sorted by distance
-to that point. With --name-catalan, it also looks the query up in tools/regions/names.json.
-No dependencies (only the Python standard library).
+(name, alternative names, English and Spanish names); --word matches whole words only.
+Each result is one name of one layer, i.e. the value to copy into the region config
+({"layer": .., "name": ..}). Several Natural Earth features can share a name (river segments,
+reef parts): the result merges them and shows how many there are, their classes, the centre of
+the merged bounding box (lon, lat) and the box itself. Boxes that cross the antimeridian are given
+with lon > 180. With --near, results are sorted by distance to that point. The query is also looked
+up in the Catalan names of tools/regions/names.json (lines starting with "names.json:").
+No dependencies (only the Python standard library). Reads NE_DIR like generate_maps.py.
 """
 import argparse
 import json
@@ -21,10 +25,15 @@ import os
 import re
 import unicodedata
 
+# ================================================================ constants
 HERE = os.path.dirname(os.path.abspath(__file__))
-NE = os.environ.get('NE_DIR', os.path.join(HERE, 'natural-earth-vector', 'geojson'))
+NE_DIR = os.environ.get('NE_DIR', os.path.join(HERE, 'natural-earth-vector', 'geojson'))
+NAMES_PATH = os.path.join(HERE, 'regions', 'names.json')
+GEOJSON_EXT = '.geojson'
+ENCODING = 'utf-8'
 
-# Same keys as generate_maps.LAYERS: config name -> (file, property used as "name" in the config)
+# Same keys as generate_maps.LAYERS: config name -> (file, property used as "name" in the config).
+# Duplicated on purpose: this tool must not need numpy, which generate_maps.py imports.
 LAYERS = {
     'regions': ('ne_10m_geography_regions_polys', 'NAME'),
     'marine': ('ne_50m_geography_marine_polys', 'name'),
@@ -34,101 +43,148 @@ LAYERS = {
 }
 SEARCH_KEYS = ('NAME', 'name', 'NAMEALT', 'namealt', 'name_alt', 'NAME_ALT', 'NAME_EN', 'name_en', 'NAME_ES',
                'name_es', 'LABEL', 'label')
+CLASS_KEYS = ('FEATURECLA', 'featurecla')
+ENGLISH_NAME_KEYS = ('NAME_EN', 'name_en')
+
+DEFAULT_LIMIT = 15
+HALF_TURN_DEG = 180
+FULL_TURN_DEG = 360
+NEAR_SEPARATOR = ','
+NAMES_PREFIX = 'names.json:'
+LIST_SEPARATOR = '/'
+
+NFD = 'NFD'
+NONSPACING_MARK = 'Mn'
+TYPOGRAPHIC_APOSTROPHE, APOSTROPHE = '’', "'"
+WORD_BOUNDARY_BEFORE, WORD_BOUNDARY_AFTER = r'(?<![a-z0-9])', r'(?![a-z0-9])'
+
+NO_RESULTS = 'No results. Try an English name, a shorter query or another layer.'
 
 
-def norm(s):
-    s = unicodedata.normalize('NFD', str(s or ''))
-    return ''.join(c for c in s if unicodedata.category(c) != 'Mn').lower().replace('’', "'")
+# ================================================================ helpers
+def normalise(value):
+    """Lowercase, without accents, with straight apostrophes."""
+    decomposed = unicodedata.normalize(NFD, str(value or ''))
+    plain = ''.join(char for char in decomposed if unicodedata.category(char) != NONSPACING_MARK)
+    return plain.lower().replace(TYPOGRAPHIC_APOSTROPHE, APOSTROPHE)
 
 
-def coords(g):
+def coordinates(geometry):
     """Every [lon, lat] of a geometry."""
-    t, c = g['type'], g['coordinates']
-    if t == 'Point':
-        return [c]
-    if t in ('LineString', 'MultiPoint'):
-        return c
-    if t in ('Polygon', 'MultiLineString'):
-        return [p for part in c for p in part]
-    if t == 'MultiPolygon':
-        return [p for poly in c for ring in poly for p in ring]
+    geometry_type, nested = geometry['type'], geometry['coordinates']
+    if geometry_type == 'Point':
+        return [nested]
+    if geometry_type in ('LineString', 'MultiPoint'):
+        return nested
+    if geometry_type in ('Polygon', 'MultiLineString'):
+        return [point for part in nested for point in part]
+    if geometry_type == 'MultiPolygon':
+        return [point for polygon in nested for ring in polygon for point in ring]
     return []
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('query')
-    ap.add_argument('--layer', choices=LAYERS)
-    ap.add_argument('--near', help='lon,lat: sort by distance to this point')
-    ap.add_argument('--word', action='store_true', help='match whole words only')
-    ap.add_argument('--limit', type=int, default=15)
-    a = ap.parse_args()
+def first_value(properties, keys):
+    """First non-empty property among keys (Natural Earth layers spell them differently)."""
+    return next((properties[key] for key in keys if properties.get(key)), None)
 
-    q = norm(a.query)
-    if a.word:
-        pat = re.compile(r'(?<![a-z0-9])' + re.escape(q) + r'(?![a-z0-9])')
-        match = lambda v: bool(pat.search(norm(v)))  # noqa: E731
-    else:
-        match = lambda v: q in norm(v)  # noqa: E731
 
-    names_path = os.path.join(HERE, 'regions', 'names.json')
-    if os.path.exists(names_path):
-        with open(names_path, encoding='utf-8') as fh:
-            known = json.load(fh)
-        for ca, entry in known.items():
-            if match(ca):
-                print(f'names.json: {ca!r} -> {json.dumps(entry, ensure_ascii=False)}')
+def matcher(query, whole_words):
+    normalised_query = normalise(query)
+    if whole_words:
+        pattern = re.compile(WORD_BOUNDARY_BEFORE + re.escape(normalised_query) + WORD_BOUNDARY_AFTER)
+        return lambda value: bool(pattern.search(normalise(value)))
+    return lambda value: normalised_query in normalise(value)
 
-    # (layer, name) -> merged info of every feature with that name
-    groups = {}
-    for layer, (file, key) in LAYERS.items():
-        if a.layer and layer != a.layer:
+
+def print_known_names(matches):
+    """Catalan names already resolved in tools/regions/names.json."""
+    if not os.path.exists(NAMES_PATH):
+        return
+    with open(NAMES_PATH, encoding=ENCODING) as handle:
+        known = json.load(handle)
+    for catalan_name, entry in known.items():
+        if matches(catalan_name):
+            print(f'{NAMES_PREFIX} {catalan_name!r} -> {json.dumps(entry, ensure_ascii=False)}')
+
+
+def collect(matches, only_layer):
+    """(layer, name) -> merged info of every Natural Earth feature with that name."""
+    merged = {}
+    for layer, (file_name, name_key) in LAYERS.items():
+        if only_layer and layer != only_layer:
             continue
-        with open(os.path.join(NE, file + '.geojson'), encoding='utf-8') as fh:
-            feats = json.load(fh)['features']
-        for f in feats:
-            p = f['properties']
-            if not any(match(p.get(k)) for k in SEARCH_KEYS):
+        with open(os.path.join(NE_DIR, file_name + GEOJSON_EXT), encoding=ENCODING) as handle:
+            ne_features = json.load(handle)['features']
+        for ne_feature in ne_features:
+            properties = ne_feature['properties']
+            if not any(matches(properties.get(key)) for key in SEARCH_KEYS):
                 continue
-            pts = coords(f['geometry'])
-            if not pts:
+            points = coordinates(ne_feature['geometry'])
+            if not points:
                 continue
-            g = groups.setdefault((layer, p.get(key)), {'n': 0, 'classes': set(), 'en': set(), 'lons': [], 'lats': []})
-            g['n'] += 1
-            g['classes'].add(p.get('FEATURECLA') or p.get('featurecla'))
-            en = p.get('NAME_EN') or p.get('name_en')
-            if en:
-                g['en'].add(en)
-            g['lons'] += [x[0] for x in pts]
-            g['lats'] += [x[1] for x in pts]
+            info = merged.setdefault((layer, properties.get(name_key)),
+                                     {'parts': 0, 'classes': set(), 'english': set(), 'lons': [], 'lats': []})
+            info['parts'] += 1
+            info['classes'].add(first_value(properties, CLASS_KEYS))
+            english = first_value(properties, ENGLISH_NAME_KEYS)
+            if english:
+                info['english'].add(english)
+            info['lons'] += [point[0] for point in points]
+            info['lats'] += [point[1] for point in points]
+    return merged
+
+
+def bounding_box(info):
+    """(west, south, east, north) and centre; across the antimeridian, longitudes go 0..360."""
+    lons = info['lons']
+    if max(lons) - min(lons) > HALF_TURN_DEG:
+        lons = [lon + FULL_TURN_DEG if lon < 0 else lon for lon in lons]
+    box = (min(lons), min(info['lats']), max(lons), max(info['lats']))
+    centre = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+    return box, centre
+
+
+def distance_deg(centre, near):
+    """Approximate distance in degrees, wrapping longitudes."""
+    lon, lat = near
+    delta_lon = (centre[0] - lon + HALF_TURN_DEG) % FULL_TURN_DEG - HALF_TURN_DEG
+    return math.hypot(delta_lon * math.cos(math.radians(lat)), centre[1] - lat)
+
+
+# ================================================================ main
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('query')
+    parser.add_argument('--layer', choices=LAYERS)
+    parser.add_argument('--near', help='lon,lat: sort by distance to this point')
+    parser.add_argument('--word', action='store_true', help='match whole words only')
+    parser.add_argument('--limit', type=int, default=DEFAULT_LIMIT)
+    args = parser.parse_args()
+
+    matches = matcher(args.query, args.word)
+    print_known_names(matches)
 
     hits = []
-    for (layer, name), g in groups.items():
-        lons = g['lons']
-        if max(lons) - min(lons) > 180:  # crosses the antimeridian: use 0..360
-            lons = [x + 360 if x < 0 else x for x in lons]
-        bbox = (min(lons), min(g['lats']), max(lons), max(g['lats']))
-        centre = ((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
-        hits.append((layer, name, g, centre, bbox))
+    for (layer, name), info in collect(matches, args.layer).items():
+        box, centre = bounding_box(info)
+        hits.append((layer, name, info, centre, box))
+    if args.near:
+        near = tuple(map(float, args.near.split(NEAR_SEPARATOR)))
+        hits.sort(key=lambda hit: distance_deg(hit[3], near))
 
-    if a.near:
-        lon, lat = map(float, a.near.split(','))
-
-        def dist(h):
-            dl = (h[3][0] - lon + 180) % 360 - 180
-            return math.hypot(dl * math.cos(math.radians(lat)), h[3][1] - lat)
-        hits.sort(key=dist)
-
-    for i, (layer, name, g, centre, bbox) in enumerate(hits):
-        if i >= a.limit:
-            print(f'... {len(hits) - a.limit} more results; narrow with --layer, --near or --word (limit {a.limit})')
+    for index, (layer, name, info, centre, box) in enumerate(hits):
+        if index >= args.limit:
+            print(f'... {len(hits) - args.limit} more results; narrow with --layer, --near or --word '
+                  f'(limit {args.limit})')
             break
-        parts = f' ({g["n"]} parts)' if g['n'] > 1 else ''
-        print(f'{layer:9} {json.dumps(name, ensure_ascii=False):34} {"/".join(sorted(map(str, g["classes"]))):20} '
-              f'en={"/".join(sorted(g["en"]))!r:28} centre=({centre[0]:.1f}, {centre[1]:.1f}) '
-              f'bbox=({bbox[0]:.1f}, {bbox[1]:.1f}, {bbox[2]:.1f}, {bbox[3]:.1f}){parts}')
+        parts = f' ({info["parts"]} parts)' if info['parts'] > 1 else ''
+        classes = LIST_SEPARATOR.join(sorted(map(str, info['classes'])))
+        english = LIST_SEPARATOR.join(sorted(info['english']))
+        print(f'{layer:9} {json.dumps(name, ensure_ascii=False):34} {classes:20} '
+              f'en={english!r:28} centre=({centre[0]:.1f}, {centre[1]:.1f}) '
+              f'bbox=({box[0]:.1f}, {box[1]:.1f}, {box[2]:.1f}, {box[3]:.1f}){parts}')
     if not hits:
-        print('No results. Try an English name, a shorter query or another layer.')
+        print(NO_RESULTS)
 
 
 if __name__ == '__main__':
