@@ -87,7 +87,7 @@ MINOR_RIVER_MAX_SCALERANK = 4  # rivers drawn on the blank map for context
 KIND_AREA, KIND_RIVER, KIND_LINE, KIND_PEAK = 'area', 'river', 'line', 'peak'
 MANUAL_KINDS = (KIND_LINE, KIND_PEAK)
 SOURCE_KINDS = (KIND_AREA, KIND_RIVER)
-# Groups known by the page (js/app.js GROUP_COLORS, css/styles.css) and the kinds each one accepts
+# Groups known by the page (js/app.js GROUP_KEYS and GROUP_COLOURS, css/styles.css) and the kinds each one accepts
 GROUPS = {
     'Rius': {KIND_RIVER}, 'Serralades': {KIND_AREA, KIND_PEAK}, 'Mars': {KIND_AREA}, 'Penínsules': {KIND_AREA},
     'Illes': {KIND_AREA}, 'Planes': {KIND_AREA}, 'Llacs': {KIND_AREA}, 'Deserts': {KIND_AREA},

@@ -36,17 +36,22 @@
 
     <!-- Icons, reused with <use href="#icon-..."> -->
     <svg class="icon-sprite" aria-hidden="true">
-      <symbol id="icon-consulta" viewBox="0 0 24 24">
+      <symbol id="icon-reference" viewBox="0 0 24 24">
         <path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z" />
         <path d="M9 4v13.5M15 6.5V20" />
       </symbol>
-      <symbol id="icon-activitat" viewBox="0 0 24 24">
+      <symbol id="icon-activity" viewBox="0 0 24 24">
         <path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.4 12 21 12 21z" />
         <circle cx="12" cy="10.5" r="2.3" />
       </symbol>
       <symbol id="icon-eye" viewBox="0 0 24 24">
         <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
         <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="icon-eye-off" viewBox="0 0 24 24">
+        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M4 20L20 4" />
       </symbol>
       <symbol id="icon-reset" viewBox="0 0 24 24">
         <path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.6" />
@@ -61,11 +66,11 @@
         <h1>Mapes físics</h1>
         <p class="landing__lead">
           <span class="landing__line">
-            <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+            <svg class="icon" aria-hidden="true"><use href="#icon-reference" /></svg>
             <span><strong>Consulta el mapa</strong> amb tots els accidents situats.</span>
           </span>
           <span class="landing__line">
-            <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+            <svg class="icon" aria-hidden="true"><use href="#icon-activity" /></svg>
             <span><strong>Arrossega</strong> cada accident geogràfic fins al seu punt del mapa mut.</span>
           </span>
         </p>
@@ -75,10 +80,10 @@
             <span class="map-card__meta">26 accidents</span>
             <div class="map-card__actions">
               <a class="btn btn--ghost btn--icon" href="#/europa/consulta" aria-label="Mapa de consulta d'Europa" title="Mapa de consulta">
-                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-reference" /></svg>
               </a>
               <a class="btn btn--icon" href="#/europa" aria-label="Activitat d'Europa" title="Activitat">
-                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-activity" /></svg>
               </a>
             </div>
           </div>
@@ -87,10 +92,10 @@
             <span class="map-card__meta">24 accidents</span>
             <div class="map-card__actions">
               <a class="btn btn--ghost btn--icon" href="#/asia/consulta" aria-label="Mapa de consulta d'Àsia" title="Mapa de consulta">
-                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-reference" /></svg>
               </a>
               <a class="btn btn--icon" href="#/asia" aria-label="Activitat d'Àsia" title="Activitat">
-                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-activity" /></svg>
               </a>
             </div>
           </div>
@@ -99,10 +104,10 @@
             <span class="map-card__meta">20 accidents</span>
             <div class="map-card__actions">
               <a class="btn btn--ghost btn--icon" href="#/africa/consulta" aria-label="Mapa de consulta d'Àfrica" title="Mapa de consulta">
-                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-reference" /></svg>
               </a>
               <a class="btn btn--icon" href="#/africa" aria-label="Activitat d'Àfrica" title="Activitat">
-                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-activity" /></svg>
               </a>
             </div>
           </div>
@@ -111,10 +116,10 @@
             <span class="map-card__meta">21 accidents</span>
             <div class="map-card__actions">
               <a class="btn btn--ghost btn--icon" href="#/america/consulta" aria-label="Mapa de consulta d'Amèrica" title="Mapa de consulta">
-                <svg class="icon" aria-hidden="true"><use href="#icon-consulta" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-reference" /></svg>
               </a>
               <a class="btn btn--icon" href="#/america" aria-label="Activitat d'Amèrica" title="Activitat">
-                <svg class="icon" aria-hidden="true"><use href="#icon-activitat" /></svg>
+                <svg class="icon" aria-hidden="true"><use href="#icon-activity" /></svg>
               </a>
             </div>
           </div>
@@ -137,17 +142,6 @@
             >Consulta</a
           >
         </nav>
-        <div class="topbar__stats" aria-live="polite">
-          <span class="stat"
-            ><span class="stat__label">Encerts</span>
-            <strong id="stat-ok">0</strong>/<span id="stat-total">0</span></span
-          >
-          <span class="stat stat--err"
-            ><span class="stat__label">Errors</span>
-            <strong id="stat-err">0</strong></span
-          >
-        </div>
-        <button type="button" class="btn" id="btn-reset">Reinicia</button>
       </header>
 
       <div class="game__body">
@@ -159,14 +153,27 @@
           id="tray"
           aria-label="Accidents geogràfics per situar"
         >
-          <p class="tray__help" id="tray-help">
-            Arrossega cada nom fins al punt correcte.
-          </p>
-          <button type="button" class="btn btn--ghost tray__reset" id="btn-show-all">
-            <svg class="icon" aria-hidden="true"><use href="#icon-reset" /></svg>
-            Restableix
-          </button>
-          <div id="tray-groups"></div>
+          <div class="tray__bar">
+            <div class="tray__stats" aria-live="polite">
+              <span class="stat"
+                ><span class="stat__label">Encerts</span>
+                <strong id="stat-ok">0</strong>/<span id="stat-total">0</span></span
+              >
+              <span class="stat stat--err"
+                ><span class="stat__label">Errors</span>
+                <strong id="stat-err">0</strong></span
+              >
+            </div>
+            <button type="button" class="btn btn--ghost tray__action tray__action--play" id="btn-reset">
+              <svg class="icon" aria-hidden="true"><use href="#icon-reset" /></svg>
+              Reinicia
+            </button>
+            <button type="button" class="btn btn--ghost tray__action tray__action--reference" id="btn-show-all">
+              <svg class="icon" aria-hidden="true"><use href="#icon-reset" /></svg>
+              Restableix
+            </button>
+          </div>
+          <div class="tray__groups" id="tray-groups"></div>
           <p class="tray__done">Tots els accidents situats ✓</p>
         </aside>
       </div>
